@@ -67,24 +67,49 @@ function AdminIncomeCalculator() {
   return (
     <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <h2>คำนวณเงินรายได้สถานศึกษา</h2>
-        <button onClick={handleSave} disabled={saving} className="btn btn-primary">
+        <h2>คำนวณงบประมาณประจำปีงบประมาณ</h2>
+        <button onClick={handleSave} disabled={saving} className="btn btn-primary" style={{ borderRadius: '12px', padding: '10px 24px', boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.2)' }}>
           {saving ? 'กำลังบันทึก...' : 'บันทึกข้อมูล'}
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '24px' }}>
-        <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', padding: '16px', borderRadius: '8px', textAlign: 'center' }}>
-          <div style={{ fontSize: '0.9rem', color: '#1d4ed8', marginBottom: '4px' }}>รวมยอดเทอม 1</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#1e3a8a' }}>{totalTerm1.toLocaleString()} บาท</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '24px', marginBottom: '32px' }}>
+        <div style={{ 
+          background: 'linear-gradient(135deg, #ffffff 0%, #eff6ff 100%)', 
+          border: '1px solid #e0e7ff', 
+          boxShadow: '0 10px 15px -3px rgba(59, 130, 246, 0.05)',
+          padding: '24px', 
+          borderRadius: '20px', 
+          textAlign: 'center',
+          transition: 'all 0.3s ease'
+        }}>
+          <div style={{ fontSize: '0.95rem', color: '#3b82f6', marginBottom: '8px', fontWeight: '600' }}>รวมยอดเทอม 1</div>
+          <div style={{ fontSize: '1.8rem', fontWeight: '800', color: '#1e3a8a' }}>{totalTerm1.toLocaleString()} บาท</div>
         </div>
-        <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', padding: '16px', borderRadius: '8px', textAlign: 'center' }}>
-          <div style={{ fontSize: '0.9rem', color: '#1d4ed8', marginBottom: '4px' }}>รวมยอดเทอม 2</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#1e3a8a' }}>{totalTerm2.toLocaleString()} บาท</div>
+        <div style={{ 
+          background: 'linear-gradient(135deg, #ffffff 0%, #eff6ff 100%)', 
+          border: '1px solid #e0e7ff', 
+          boxShadow: '0 10px 15px -3px rgba(59, 130, 246, 0.05)',
+          padding: '24px', 
+          borderRadius: '20px', 
+          textAlign: 'center',
+          transition: 'all 0.3s ease'
+        }}>
+          <div style={{ fontSize: '0.95rem', color: '#3b82f6', marginBottom: '8px', fontWeight: '600' }}>รวมยอดเทอม 2</div>
+          <div style={{ fontSize: '1.8rem', fontWeight: '800', color: '#1e3a8a' }}>{totalTerm2.toLocaleString()} บาท</div>
         </div>
-        <div style={{ background: '#dbeafe', border: '1px solid #93c5fd', padding: '16px', borderRadius: '8px', textAlign: 'center' }}>
-          <div style={{ fontSize: '0.9rem', color: '#1e40af', marginBottom: '4px' }}>ยอดรวมทั้งสิ้น (เทอม 1 + 2)</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#1e3a8a' }}>{grandTotal.toLocaleString()} บาท</div>
+        <div style={{ 
+          background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)', 
+          border: 'none', 
+          boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.3)',
+          padding: '24px', 
+          borderRadius: '20px', 
+          textAlign: 'center',
+          color: 'white',
+          transform: 'scale(1.02)'
+        }}>
+          <div style={{ fontSize: '1rem', color: '#bfdbfe', marginBottom: '8px', fontWeight: '600' }}>ยอดรวมทั้งสิ้น (เทอม 1 + 2)</div>
+          <div style={{ fontSize: '2rem', fontWeight: '900', color: '#ffffff' }}>{grandTotal.toLocaleString()} บาท</div>
         </div>
       </div>
 
@@ -120,18 +145,18 @@ function AdminIncomeCalculator() {
                     <tr key={inc.id}>
                       <td style={{ paddingLeft: '32px' }}>{inc.sub_category || '-'}</td>
                       <td style={{ textAlign: 'right' }}>
-                        <input type="number" style={{ width: '80px', textAlign: 'right', padding: '4px' }} value={inc.students_term1 || ''} onChange={e => handleInputChange(inc.id, 'students_term1', e.target.value)} />
+                        <input type="number" style={{ width: '80px', textAlign: 'right', padding: '6px 8px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} value={inc.students_term1 || ''} onChange={e => handleInputChange(inc.id, 'students_term1', e.target.value)} />
                       </td>
                       <td style={{ textAlign: 'right' }}>
-                        <input type="number" style={{ width: '80px', textAlign: 'right', padding: '4px' }} value={inc.amount_term1 || ''} onChange={e => handleInputChange(inc.id, 'amount_term1', e.target.value)} />
+                        <input type="number" style={{ width: '80px', textAlign: 'right', padding: '6px 8px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} value={inc.amount_term1 || ''} onChange={e => handleInputChange(inc.id, 'amount_term1', e.target.value)} />
                       </td>
                       <td style={{ textAlign: 'right', fontWeight: 'bold', color: '#047857' }}>{t1.toLocaleString()}</td>
                       
                       <td style={{ textAlign: 'right', borderLeft: '2px solid #eee' }}>
-                        <input type="number" style={{ width: '80px', textAlign: 'right', padding: '4px' }} value={inc.students_term2 || ''} onChange={e => handleInputChange(inc.id, 'students_term2', e.target.value)} />
+                        <input type="number" style={{ width: '80px', textAlign: 'right', padding: '6px 8px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} value={inc.students_term2 || ''} onChange={e => handleInputChange(inc.id, 'students_term2', e.target.value)} />
                       </td>
                       <td style={{ textAlign: 'right' }}>
-                        <input type="number" style={{ width: '80px', textAlign: 'right', padding: '4px' }} value={inc.amount_term2 || ''} onChange={e => handleInputChange(inc.id, 'amount_term2', e.target.value)} />
+                        <input type="number" style={{ width: '80px', textAlign: 'right', padding: '6px 8px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} value={inc.amount_term2 || ''} onChange={e => handleInputChange(inc.id, 'amount_term2', e.target.value)} />
                       </td>
                       <td style={{ textAlign: 'right', fontWeight: 'bold', color: '#047857' }}>{t2.toLocaleString()}</td>
                       
