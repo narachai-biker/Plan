@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../supabaseClient';
 
 function AdminDashboard() {
   const { user } = useAuth();
@@ -38,15 +39,73 @@ function AdminDashboard() {
   }, [selectedDept, considerTab]);
 
   const fetchDashboard = async () => {
-    const res = await fetch(`/api/admin/dashboard?budgetCategory=${budgetCategory}`);
-    const data = await res.json();
-    setDashboardData(data);
+    const { data: oData } = await supabase.from('orderscart').select('*');
+    const { data: aData } = await supabase.from('activities').select('*');
+    if (!oData || !aData) return;
+
+    let result = [];
+    if (budgetCategory === '1') {
+      const depts = [...new Set(oData.map(o => o.department))];
+      result = depts.map(dept => {
+        const dOrders = oData.filter(o => o.department === dept);
+        let actTotal = 0, offTotal = 0, techTotal = 0;
+
+        dOrders.forEach(o => {
+          const act = aData.find(a => a.activity_id === o.activity_id);
+          const validActivity = act && act.budget_type && act.budget_type.includes('ค่าจัดการเรียนการสอน');
+          
+          const qty = o.status === 'รอพิจารณา' ? o.qty_requested : (o.status === 'ไม่อนุมัติ' ? 0 : o.qty_approved);
+          const val = qty * o.price;
+
+          if (o.tab_category === 'Activities' && validActivity) {
+            actTotal += val;
+          } else if (o.tab_category === 'Office Supplies') {
+            offTotal += val;
+          } else if (o.tab_category === 'Technology') {
+            techTotal += val;
+          }
+        });
+        
+        return {
+          department: dept,
+          activity_total: actTotal,
+          office_total: offTotal,
+          tech_total: techTotal
+        };
+      });
+    } else if (budgetCategory === '2') {
+      const activities = aData.filter(a => a.budget_type && a.budget_type.includes('กิจกรรมพัฒนาคุณภาพผู้เรียน'));
+      const aMap = {};
+      activities.forEach(a => { aMap[a.activity] = 0; });
+
+      oData.forEach(o => {
+        const act = aData.find(a => a.activity_id === o.activity_id);
+        if (act && act.budget_type && act.budget_type.includes('กิจกรรมพัฒนาคุณภาพผู้เรียน')) {
+          const qty = o.status === 'รอพิจารณา' ? o.qty_requested : (o.status === 'ไม่อนุมัติ' ? 0 : o.qty_approved);
+          if (!aMap[act.activity]) aMap[act.activity] = 0;
+          aMap[act.activity] += qty * o.price;
+        }
+      });
+      result = Object.keys(aMap).map(k => ({ activity_name: k, total: aMap[k] }));
+    } else if (budgetCategory === '3') {
+      const aMap = {};
+      oData.forEach(o => {
+        const act = aData.find(a => a.activity_id === o.activity_id);
+        const isIncome = (o.activity_id && o.activity_id.startsWith('รด')) || (act && act.activity_id && act.activity_id.startsWith('รด'));
+        if (isIncome && act) {
+          const qty = o.status === 'รอพิจารณา' ? o.qty_requested : (o.status === 'ไม่อนุมัติ' ? 0 : o.qty_approved);
+          if (!aMap[act.activity]) aMap[act.activity] = 0;
+          aMap[act.activity] += qty * o.price;
+        }
+      });
+      result = Object.keys(aMap).map(k => ({ activity_name: k, total: aMap[k] }));
+    }
+    setDashboardData(result);
   };
 
   const fetchSystemStatus = async () => {
-    const res = await fetch(`/api/settings/system_status`);
-    const data = await res.json();
-    setSystemStatus(data.status);
+    const { data } = await supabase.from('systemsettings').select('*').eq('key', 'system_status').single();
+    if (data) setSystemStatus(data.value);
   };
 
   const toggleSystemStatus = async () => {
@@ -54,55 +113,83 @@ function AdminDashboard() {
     const actionText = newStatus === 'open' ? 'เปิดรับคำขอ (เปิดทุกกลุ่มงาน)' : 'ปิดรับคำขอ (ปิดทุกกลุ่มงาน)';
     if (!confirm(`ต้องการเปลี่ยนสถานะระบบเป็น "${actionText}" ใช่หรือไม่?\n\n* การกระทำนี้จะปรับสถานะในหน้าตั้งค่าสิทธิ์ของทุกกลุ่มงานเป็น "เปิด" หรือ "ปิด" รวดเดียวทั้งหมด`)) return;
     
-    await fetch(`/api/admin/settings/system_status`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: newStatus })
-    });
+    const isUnlocked = newStatus === 'open' ? 1 : 0;
+    
+    await supabase.from('systemsettings').upsert({ key: 'system_status', value: newStatus });
+    
+    const { data: actData } = await supabase.from('activities').select('department');
+    if (actData) {
+      const uniqueDepts = [...new Set(actData.map(a => a.department))];
+      const locks = uniqueDepts.map(d => ({ department: d, is_unlocked: isUnlocked }));
+      await supabase.from('departmentlocks').upsert(locks);
+    }
+
     setSystemStatus(newStatus);
     fetchDepartments();
   };
 
   const fetchDepartments = async () => {
-    const res = await fetch(`/api/activities`);
-    const data = await res.json();
-    setActivitiesList(data);
-    const depts = [...new Set(data.map(d => d.department))];
-    setDepartments(depts);
+    const { data: actData } = await supabase.from('activities').select('*');
+    if (actData) {
+      setActivitiesList(actData);
+      setDepartments([...new Set(actData.map(d => d.department))]);
+    }
 
-    const lockRes = await fetch(`/api/departments/locks`);
-    const lockData = await lockRes.json();
-    setDepartmentLocks(lockData);
+    const { data: lockData } = await supabase.from('departmentlocks').select('*');
+    if (lockData) setDepartmentLocks(lockData);
   };
 
   const fetchOrders = async () => {
-    const res = await fetch(`/api/requests?role=admin&department=${selectedDept}`);
-    const data = await res.json();
-    setOrders(data.filter(d => d.tab_category === considerTab));
+    if (!selectedDept) return;
+    const { data } = await supabase.from('orderscart').select('*').eq('department', selectedDept);
+    if (data) setOrders(data.filter(d => d.tab_category === considerTab));
   };
 
   const fetchHistory = async () => {
-    const res = await fetch(`/api/admin/history`);
-    const data = await res.json();
-    setHistory(data);
+    const { data } = await supabase.from('historylog').select('*').order('created_at', { ascending: false });
+    if (data) setHistory(data);
   };
 
   const handleUpdate = async (id, qty_approved, status) => {
-    await fetch(`/api/requests/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ qty_approved, status, admin_name: user.name })
-    });
-    fetchOrders();
-    fetchHistory();
+    const order = orders.find(o => o.id === id);
+    if (!order) return;
+    
+    const old_qty = order.qty_requested;
+    const old_total = old_qty * order.price;
+    const new_total = qty_approved * order.price;
+
+    const { error } = await supabase
+      .from('orderscart')
+      .update({ qty_approved, status })
+      .eq('id', id);
+
+    if (!error) {
+      const log = {
+        order_id: order.order_id,
+        department: order.department,
+        admin_name: user.username,
+        term: order.term,
+        tab_category: order.tab_category,
+        activity_id: order.activity_id,
+        project: order.project,
+        item_name: order.item_name,
+        old_qty: old_qty,
+        new_qty: qty_approved,
+        old_total: old_total,
+        new_total: new_total,
+        status: status
+      };
+      await supabase.from('historylog').insert([log]);
+
+      fetchOrders();
+      fetchHistory();
+    } else {
+      alert("Error: " + error.message);
+    }
   };
 
   const handleDepartmentLockUpdate = async (department, is_unlocked) => {
-    await fetch(`/api/admin/departments/lock`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ department, is_unlocked })
-    });
+    await supabase.from('departmentlocks').upsert({ department, is_unlocked });
     fetchDepartments();
   };
 

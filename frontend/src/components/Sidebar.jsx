@@ -1,5 +1,5 @@
 import { useAuth } from '../context/AuthContext';
-import { Home, Edit3, LogOut, Users, Package } from 'lucide-react';
+import { Home, Edit3, LogOut, Users, Package, Calculator } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 export default function Sidebar() {
@@ -31,6 +31,10 @@ export default function Sidebar() {
             <Link to="/admin/products" className={`sidebar-link ${location.pathname === '/admin/products' ? 'active' : ''}`}>
               <Package size={20} />
               จัดการรายการสินค้า
+            </Link>
+            <Link to="/admin/income" className={`sidebar-link ${location.pathname === '/admin/income' ? 'active' : ''}`}>
+              <Calculator size={20} />
+              คำนวณเงินได้
             </Link>
             <Link to="/user" className={`sidebar-link ${location.pathname === '/user' ? 'active' : ''}`}>
               <Edit3 size={20} />

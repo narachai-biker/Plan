@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { supabase } from '../supabaseClient';
 
 function AdminUserManagement() {
   const LEARNING_AREAS = [
@@ -28,9 +29,8 @@ function AdminUserManagement() {
   }, []);
 
   const fetchUsers = async () => {
-    const res = await fetch(`/api/admin/users`);
-    const data = await res.json();
-    setUsers(data);
+    const { data } = await supabase.from('users').select('*').order('id', { ascending: true });
+    if (data) setUsers(data);
   };
 
   const handleOpenModal = (user = null) => {
@@ -52,19 +52,20 @@ function AdminUserManagement() {
   const handleSave = async (e) => {
     e.preventDefault();
     const finalDept = [formData.learningArea, formData.taskGroup].filter(Boolean).join(', ');
-    const payload = { ...formData, department: finalDept };
+    const payload = { 
+      username: formData.username,
+      password: formData.password,
+      name: formData.name,
+      role: formData.role,
+      department: finalDept,
+      status: formData.status || 'active'
+    };
 
-    const url = formData.id 
-      ? `/api/admin/users/${formData.id}`
-      : `/api/admin/users`;
-    
-    const method = formData.id ? 'PUT' : 'POST';
-
-    await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
+    if (formData.id) {
+      await supabase.from('users').update(payload).eq('id', formData.id);
+    } else {
+      await supabase.from('users').insert([payload]);
+    }
 
     setShowModal(false);
     fetchUsers();
@@ -72,7 +73,7 @@ function AdminUserManagement() {
 
   const handleDelete = async (id) => {
     if (!confirm('ยืนยันการลบผู้ใช้งานรายนี้?')) return;
-    await fetch(`/api/admin/users/${id}`, { method: 'DELETE' });
+    await supabase.from('users').delete().eq('id', id);
     fetchUsers();
   };
 

@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Plus, Edit2, Trash2, X, Save, FileDown } from 'lucide-react';
+import { supabase } from '../supabaseClient';
 
 export default function UserDashboard() {
   const { user } = useAuth();
   
   // Department parsing
-  const departments = user.department.split(',').map(d => d.trim());
-  const [selectedDept, setSelectedDept] = useState(departments[0]);
+  const isPlan = user.username === 'plan';
+  const defaultDepartments = user.department ? user.department.split(',').map(d => d.trim()) : [];
+  const [selectedDept, setSelectedDept] = useState(defaultDepartments[0] || '');
+  const [allDepartments, setAllDepartments] = useState([]);
 
   const [activeTab, setActiveTab] = useState('Activities');
   const [activities, setActivities] = useState([]);
@@ -37,31 +40,34 @@ export default function UserDashboard() {
   // Edit Modal State
   const [editItem, setEditItem] = useState(null);
 
-  const fetchData = () => {
-    fetch('/api/activities')
-      .then(r => r.json())
-      .then(data => setActivities(data));
-      
-    fetch('/api/products')
-      .then(r => r.json())
-      .then(data => setProducts(data));
+  const fetchData = async () => {
+    const [{ data: actData }, { data: prodData }, { data: reqData }, { data: lockData }, { data: sysData }] = await Promise.all([
+      supabase.from('activities').select('*'),
+      supabase.from('productcatalog').select('*'),
+      supabase.from('orderscart').select('*'),
+      supabase.from('departmentlocks').select('*'),
+      supabase.from('systemsettings').select('*').eq('key', 'system_status').single()
+    ]);
 
-    fetch(`/api/requests?role=user`)
-      .then(r => r.json())
-      .then(data => setRequests(data));
-
-    fetch(`/api/departments/locks`)
-      .then(r => r.json())
-      .then(data => setDepartmentLocks(data));
-
-    fetch(`/api/settings/system_status`)
-      .then(r => r.json())
-      .then(data => setSystemStatus(data.status));
+    if (actData) {
+      setActivities(actData);
+      const uniqueDepts = [...new Set(actData.map(a => a.department))].sort();
+      setAllDepartments(uniqueDepts);
+      if (isPlan && !selectedDept && uniqueDepts.length > 0) {
+        setSelectedDept(uniqueDepts[0]);
+      }
+    }
+    if (prodData) setProducts(prodData);
+    if (reqData) setRequests(reqData);
+    if (lockData) {
+      setDepartmentLocks(lockData);
+    }
+    if (sysData) setSystemStatus(sysData.value);
   };
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [selectedDept, isPlan]);
 
   const deptActivities = activities.filter(a => a.department === selectedDept);
   
@@ -105,6 +111,7 @@ export default function UserDashboard() {
     const actData = activeTab === 'Activities' ? activities.find(a => a.activity_id === selectedActivity) : null;
     
     const requestData = {
+      order_id: 'ORD-' + Date.now() + Math.floor(Math.random()*1000),
       username: user.username,
       department: selectedDept,
       tab_category: activeTab,
@@ -117,21 +124,21 @@ export default function UserDashboard() {
       unit: customUnit,
       price: parseFloat(customPrice),
       qty_requested: parseInt(qty),
+      qty_approved: 0,
+      status: 'รอพิจารณา',
       remark: remark
     };
 
     try {
-      const res = await fetch('/api/requests', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requests: [requestData] })
-      });
-      if (res.ok) {
+      const { error } = await supabase.from('orderscart').insert([requestData]);
+      if (!error) {
         setIsAddOpen(false);
-        fetchData(); // refresh cart
+        fetchData();
+      } else {
+        throw new Error(error.message);
       }
     } catch (err) {
-      alert("Error saving");
+      alert("Error saving: " + err.message);
     }
   };
 
@@ -139,38 +146,76 @@ export default function UserDashboard() {
     e.preventDefault();
 
     try {
-      const res = await fetch(`/api/requests/${editItem.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          user_edit: true,
-          admin_name: user.username,
+      const { error } = await supabase
+        .from('orderscart')
+        .update({
           qty_requested: parseInt(editItem.qty_requested),
           remark: editItem.remark
         })
-      });
-      if (res.ok) {
-        setIsEditOpen(false);
-        fetchData();
-      }
+        .eq('id', editItem.id);
+
+      if (error) throw new Error(error.message);
+
+      const old_qty = requests.find(r => r.id === editItem.id).qty_requested;
+      const historyLog = {
+        order_id: editItem.order_id,
+        department: editItem.department,
+        admin_name: user.username,
+        term: editItem.term,
+        tab_category: editItem.tab_category,
+        activity_id: editItem.activity_id,
+        project: editItem.project,
+        item_name: editItem.item_name,
+        old_qty: old_qty,
+        new_qty: parseInt(editItem.qty_requested),
+        old_total: old_qty * editItem.price,
+        new_total: parseInt(editItem.qty_requested) * editItem.price,
+        status: 'ผู้ใช้แก้ไขรายการ',
+        remark: editItem.remark
+      };
+      await supabase.from('historylog').insert([historyLog]);
+
+      setIsEditOpen(false);
+      fetchData();
     } catch (err) {
-      alert("Error updating");
+      alert("Error updating: " + err.message);
     }
   };
 
   const handleDelete = async (id) => {
     if (!confirm("ต้องการลบรายการนี้ใช่หรือไม่?")) return;
     try {
-      const res = await fetch(`/api/requests/${id}?username=${encodeURIComponent(user.username)}`, { method: 'DELETE' });
-      if (res.ok) fetchData();
+      const item = requests.find(r => r.id === id);
+      const { error } = await supabase.from('orderscart').delete().eq('id', id);
+      if (error) throw new Error(error.message);
+
+      const historyLog = {
+        order_id: item.order_id,
+        department: item.department,
+        admin_name: user.username,
+        term: item.term,
+        tab_category: item.tab_category,
+        activity_id: item.activity_id,
+        project: item.project,
+        item_name: item.item_name,
+        old_qty: item.qty_requested,
+        new_qty: 0,
+        old_total: item.qty_requested * item.price,
+        new_total: 0,
+        status: 'ผู้ใช้ลบรายการ',
+        remark: item.remark
+      };
+      await supabase.from('historylog').insert([historyLog]);
+
+      fetchData();
     } catch (err) {
-      alert("Error deleting");
+      alert("Error deleting: " + err.message);
     }
   };
 
   const lock = departmentLocks.find(l => l.department === selectedDept);
   const unlocked = lock ? lock.is_unlocked === 1 : (systemStatus === 'open');
-  const canAdd = unlocked;
+  const canAdd = isPlan || unlocked;
 
   const isLocked = (itemStatus) => {
     if (unlocked) return false;
@@ -193,14 +238,14 @@ export default function UserDashboard() {
       {/* Department Selector */}
       <div className="glass-panel" style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '16px' }}>
         <h3 style={{ margin: 0, whiteSpace: 'nowrap' }}>กลุ่มสาระ/กลุ่มงานที่ใช้งาน:</h3>
-        <select 
-          className="form-control" 
-          value={selectedDept} 
-          onChange={e => setSelectedDept(e.target.value)}
-          style={{ maxWidth: '400px', fontWeight: 'bold', color: 'var(--primary)' }}
-        >
-          {departments.map(d => <option key={d} value={d}>{d}</option>)}
-        </select>
+          <select 
+            className="form-control" 
+            value={selectedDept} 
+            onChange={e => setSelectedDept(e.target.value)}
+            style={{ maxWidth: '400px', fontWeight: 'bold', color: 'var(--primary)' }}
+          >
+            {(isPlan && allDepartments.length > 0 ? allDepartments : defaultDepartments).map(d => <option key={d} value={d}>{d}</option>)}
+          </select>
       </div>
 
       <div className="tabs">

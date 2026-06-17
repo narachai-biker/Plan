@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../supabaseClient';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -14,18 +15,18 @@ export default function Login() {
     setError('');
 
     try {
-      const response = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-      });
+      const { data, error: sbError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('username', username)
+        .eq('password', password)
+        .single();
 
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || 'Login failed');
+      if (sbError || !data) {
+        throw new Error('Login failed: Invalid username or password');
       }
 
-      login(data.user);
+      login(data);
     } catch (err) {
       setError(err.message);
     } finally {

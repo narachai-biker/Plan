@@ -5,6 +5,7 @@ import UserDashboard from './components/UserDashboard';
 import AdminDashboard from './components/AdminDashboard';
 import AdminUserManagement from './components/AdminUserManagement';
 import AdminProductManagement from './components/AdminProductManagement';
+import AdminIncomeCalculator from './components/AdminIncomeCalculator';
 import Sidebar from './components/Sidebar';
 import Navbar from './components/Navbar';
 
@@ -28,6 +29,7 @@ function App() {
                   <Route path="/" element={<AdminDashboard />} />
                   <Route path="/admin/users" element={<AdminUserManagement />} />
                   <Route path="/admin/products" element={<AdminProductManagement />} />
+                  <Route path="/admin/income" element={<AdminIncomeCalculator />} />
                   <Route path="/user" element={<UserDashboard />} />
                 </>
               )}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { supabase } from '../supabaseClient';
 
 export default function AdminProductManagement() {
   const [products, setProducts] = useState([]);
@@ -27,9 +28,8 @@ export default function AdminProductManagement() {
   }, []);
 
   const fetchProducts = async () => {
-    const res = await fetch(`/api/products`);
-    const data = await res.json();
-    setProducts(data);
+    const { data } = await supabase.from('productcatalog').select('*');
+    if (data) setProducts(data);
   };
 
   const handleOpenModal = (product = null) => {
@@ -46,21 +46,18 @@ export default function AdminProductManagement() {
   const handleSave = async (e) => {
     e.preventDefault();
     const payload = {
-      ...formData,
-      price: parseFloat(formData.price) || 0
+      category: formData.category,
+      item_name: formData.item_name,
+      unit: formData.unit,
+      price: parseFloat(formData.price) || 0,
+      budget_type: formData.budget_type
     };
 
-    const url = formData.id 
-      ? `/api/admin/products/${formData.id}`
-      : `/api/admin/products`;
-    
-    const method = formData.id ? 'PUT' : 'POST';
-
-    await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
+    if (formData.id) {
+      await supabase.from('productcatalog').update(payload).eq('id', formData.id);
+    } else {
+      await supabase.from('productcatalog').insert([payload]);
+    }
 
     setShowModal(false);
     fetchProducts();
@@ -68,7 +65,7 @@ export default function AdminProductManagement() {
 
   const handleDelete = async (id) => {
     if (!confirm('ยืนยันการลบสินค้านี้?')) return;
-    await fetch(`/api/admin/products/${id}`, { method: 'DELETE' });
+    await supabase.from('productcatalog').delete().eq('id', id);
     fetchProducts();
   };
 
@@ -92,11 +89,7 @@ export default function AdminProductManagement() {
 
   const handleBulkSave = async () => {
     if (parsedBulkData.length === 0) return;
-    await fetch('/api/admin/products/bulk', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ products: parsedBulkData })
-    });
+    await supabase.from('productcatalog').insert(parsedBulkData);
     setShowBulkModal(false);
     setBulkText('');
     setParsedBulkData([]);
