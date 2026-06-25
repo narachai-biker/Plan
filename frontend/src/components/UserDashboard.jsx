@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Plus, Edit2, Trash2, X, Save, FileDown } from 'lucide-react';
 import { supabase } from '../supabaseClient';
+import * as XLSX from 'xlsx';
 
 export default function UserDashboard() {
   const { user } = useAuth();
@@ -232,6 +233,45 @@ export default function UserDashboard() {
     return 0;
   });
 
+  const handleExportExcel = async () => {
+    try {
+      const { data: ordersData } = await supabase.from('orderscart').select('*').eq('department', selectedDept);
+      const { data: actData } = await supabase.from('activities').select('*').eq('department', selectedDept);
+      
+      if (!ordersData || ordersData.length === 0) {
+        alert('ไม่มีข้อมูลสำหรับส่งออก');
+        return;
+      }
+
+      const excelData = ordersData.map(o => {
+        const act = actData ? actData.find(a => a.activity_id === o.activity_id) : null;
+        return {
+          'ภาคเรียน': o.term,
+          'กลุ่มงาน': o.department,
+          'หมวดหมู่': o.tab_category === 'Activities' ? 'กิจกรรม' : o.tab_category === 'Office Supplies' ? 'วัสดุสำนักงาน' : 'เทคโนโลยี',
+          'รหัสกิจกรรม': o.activity_id !== '-' ? o.activity_id : '',
+          'ชื่อกิจกรรม': act ? act.activity : o.activity !== '-' ? o.activity : '',
+          'รายการ': o.item_name,
+          'ประเภทงบ': o.budget_type,
+          'ราคา/หน่วย': o.price,
+          'จำนวนที่ขอ': o.qty_requested,
+          'จำนวนที่อนุมัติ': o.qty_approved,
+          'หน่วยนับ': o.unit,
+          'สถานะ': o.status,
+          'หมายเหตุ': o.remark || ''
+        };
+      });
+
+      const ws = XLSX.utils.json_to_sheet(excelData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Orders");
+      XLSX.writeFile(wb, `budget_export_${selectedDept}.xlsx`);
+    } catch (error) {
+      console.error(error);
+      alert('เกิดข้อผิดพลาดในการส่งออก Excel');
+    }
+  };
+
   return (
     <div className="animate-fade-in" style={{ paddingBottom: '100px' }}>
       
@@ -263,7 +303,7 @@ export default function UserDashboard() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <h2>รายการตะกร้า ({visibleCart.length})</h2>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button className="btn btn-outline" onClick={() => window.location.href = `/api/export?department=${selectedDept}`}>
+          <button className="btn btn-outline" onClick={handleExportExcel}>
             <FileDown size={18} /> นำออก Excel
           </button>
           {canAdd && (
