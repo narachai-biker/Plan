@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../supabaseClient';
-import * as XLSX from 'xlsx';
+import { exportBudgetToExcel } from '../utils/exportUtils';
 
 function AdminDashboard() {
   const { user } = useAuth();
@@ -204,29 +204,7 @@ function AdminDashboard() {
         return;
       }
 
-      const excelData = ordersData.map(o => {
-        const act = actData ? actData.find(a => a.activity_id === o.activity_id) : null;
-        return {
-          'ภาคเรียน': o.term,
-          'กลุ่มงาน': o.department,
-          'หมวดหมู่': o.tab_category === 'Activities' ? 'กิจกรรม' : o.tab_category === 'Office Supplies' ? 'วัสดุสำนักงาน' : 'เทคโนโลยี',
-          'รหัสกิจกรรม': o.activity_id !== '-' ? o.activity_id : '',
-          'ชื่อกิจกรรม': act ? act.activity : o.activity !== '-' ? o.activity : '',
-          'รายการ': o.item_name,
-          'ประเภทงบ': o.budget_type,
-          'ราคา/หน่วย': o.price,
-          'จำนวนที่ขอ': o.qty_requested,
-          'จำนวนที่อนุมัติ': o.qty_approved,
-          'หน่วยนับ': o.unit,
-          'สถานะ': o.status,
-          'หมายเหตุ': o.remark || ''
-        };
-      });
-
-      const ws = XLSX.utils.json_to_sheet(excelData);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "All_Orders");
-      XLSX.writeFile(wb, `budget_export_ALL.xlsx`);
+      exportBudgetToExcel(ordersData, actData, `budget_export_ALL`);
     } catch (error) {
       console.error(error);
       alert('เกิดข้อผิดพลาดในการส่งออก Excel');
