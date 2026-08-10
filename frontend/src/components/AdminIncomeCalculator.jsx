@@ -83,7 +83,7 @@ function AdminIncomeCalculator() {
           textAlign: 'center',
           transition: 'all 0.3s ease'
         }}>
-          <div style={{ fontSize: '0.95rem', color: '#3b82f6', marginBottom: '8px', fontWeight: '600' }}>รวมยอดเทอม 1</div>
+          <div style={{ fontSize: '0.95rem', color: '#3b82f6', marginBottom: '8px', fontWeight: '600' }}>รวมยอด 2/2569</div>
           <div style={{ fontSize: '1.8rem', fontWeight: '800', color: '#1e3a8a' }}>{totalTerm1.toLocaleString()} บาท</div>
         </div>
         <div style={{ 
@@ -95,7 +95,7 @@ function AdminIncomeCalculator() {
           textAlign: 'center',
           transition: 'all 0.3s ease'
         }}>
-          <div style={{ fontSize: '0.95rem', color: '#3b82f6', marginBottom: '8px', fontWeight: '600' }}>รวมยอดเทอม 2</div>
+          <div style={{ fontSize: '0.95rem', color: '#3b82f6', marginBottom: '8px', fontWeight: '600' }}>รวมยอด 1/2570</div>
           <div style={{ fontSize: '1.8rem', fontWeight: '800', color: '#1e3a8a' }}>{totalTerm2.toLocaleString()} บาท</div>
         </div>
         <div style={{ 
@@ -108,7 +108,7 @@ function AdminIncomeCalculator() {
           color: 'white',
           transform: 'scale(1.02)'
         }}>
-          <div style={{ fontSize: '1rem', color: '#bfdbfe', marginBottom: '8px', fontWeight: '600' }}>ยอดรวมทั้งสิ้น (เทอม 1 + 2)</div>
+          <div style={{ fontSize: '1rem', color: '#bfdbfe', marginBottom: '8px', fontWeight: '600' }}>ยอดรวมทั้งสิ้น (2 ภาคเรียน)</div>
           <div style={{ fontSize: '2rem', fontWeight: '900', color: '#ffffff' }}>{grandTotal.toLocaleString()} บาท</div>
         </div>
       </div>
@@ -118,8 +118,8 @@ function AdminIncomeCalculator() {
           <thead>
             <tr>
               <th rowSpan="2" style={{ verticalAlign: 'middle' }}>หมวดหมู่เงิน / วัตถุประสงค์</th>
-              <th colSpan="3" style={{ textAlign: 'center', borderBottom: '1px solid #eee' }}>เทอม 1</th>
-              <th colSpan="3" style={{ textAlign: 'center', borderBottom: '1px solid #eee', borderLeft: '2px solid #eee' }}>เทอม 2</th>
+              <th colSpan="3" style={{ textAlign: 'center', borderBottom: '1px solid #eee' }}>2/2569</th>
+              <th colSpan="3" style={{ textAlign: 'center', borderBottom: '1px solid #eee', borderLeft: '2px solid #eee' }}>1/2570</th>
               <th rowSpan="2" style={{ verticalAlign: 'middle', textAlign: 'right', borderLeft: '2px solid #eee' }}>รวมทั้งสิ้น</th>
             </tr>
             <tr>
