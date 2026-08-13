@@ -2,27 +2,37 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
 function AdminUserManagement() {
-  const LEARNING_AREAS = [
-    'ภาษาไทย', 'คณิตศาสตร์', 'วิทยาศาสตร์', 'เทคโนโลยี', 'สังคมศึกษา',
-    'สุขศึกษา', 'ศิลปะ', 'ภาษาต่างประเทศ', 'การงานอาชีพ', 'แนะแนว',
-    'ห้องสมุด', 'กิจกรรมพัฒนาผู้เรียน', 'ห้องเรียนพิเศษ'
-  ];
-
-  const TASK_GROUPS = [
+  const DEPARTMENTS = [
     'กลุ่มบริหารวิชาการ',
-    'บริหารงบประมาณและแผนงาน(งานการเงิน)',
-    'บริหารงบประมาณและแผนงาน(งานพัสดุ)',
-    'บริหารงบประมาณและแผนงาน(งานแผนงาน)',
-    'บริหารงบประมาณและแผนงาน(งานยานพาหนะ)',
-    'บริหารงบประมาณและแผนงาน(งานโรงเรียนธนาคาร)',
-    'บริหารอำนวยการและบุคคล',
-    'บริหารกิจการนักเรียน',
-    'บริหารทั่วไป'
+    'กลุ่มบริหารงบประมาณและแผนงาน (งานการเงินและบัญชี)',
+    'กลุ่มบริหารงบประมาณและแผนงาน (งานแผนงาน)',
+    'กลุ่มบริหารงบประมาณและแผนงาน (งานพัสดุ)',
+    'กลุ่มบริหารงบประมาณและแผนงาน (งานโรงเรียนธนาคาร)',
+    'กลุ่มบริหารอำนวยการและบุคคล (งานสารบรรณ)',
+    'กลุ่มบริหารอำนวยการและบุคคล (งานบุคคล)',
+    'กลุ่มบริหารอำนวยการและบุคคล (งานควบคุมภายใน)',
+    'กลุ่มบริหารทั่วไป (สำนักงาน)',
+    'กลุ่มบริหารทั่วไป (งานโสตทัศนูปกรณ์)',
+    'กลุ่มบริหารกิจการนักเรียน (สำนักงาน)',
+    'กลุ่มบริหารกิจการนักเรียน (สภานักเรียน)',
+    'โครงการห้องเรียนวิทยาศาสตร์พลังสิบ',
+    'กลุ่มสาระการเรียนรู้ภาษาไทย',
+    'กลุ่มสาระการเรียนรู้คณิตศาสตร์',
+    'กลุ่มสาระการเรียนรู้วิทยาศาสตร์และเทคโนโลยี',
+    'งานคอมพิวเตอร์',
+    'กลุ่มสาระการเรียนรู้สังคมศึกษา ศาสนาและวัฒนธรรม',
+    'กลุ่มสาระการเรียนรู้สุขศึกษาและพลศึกษา',
+    'กลุ่มสาระการเรียนรู้ศิลปะ',
+    'กลุ่มสาระการเรียนรู้ภาษาต่างประเทศ',
+    'กลุ่มสาระการเรียนรู้การงานอาชีพ',
+    'งานกิจกรรมพัฒนาผู้เรียน',
+    'งานแนะแนว',
+    'งานห้องสมุด'
   ];
 
   const [users, setUsers] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState({ id: null, username: '', password: '', name: '', role: 'user', learningArea: '', taskGroup: '' });
+  const [formData, setFormData] = useState({ id: null, username: '', password: '', name: '', role: 'user', department: '' });
 
   useEffect(() => {
     fetchUsers();
@@ -35,29 +45,21 @@ function AdminUserManagement() {
 
   const handleOpenModal = (user = null) => {
     if (user) {
-      const depts = user.department ? user.department.split(',').map(d => d.trim()) : [];
-      let learningArea = '';
-      let taskGroup = '';
-      depts.forEach(d => {
-        if (LEARNING_AREAS.includes(d)) learningArea = d;
-        else if (TASK_GROUPS.includes(d)) taskGroup = d;
-      });
-      setFormData({ ...user, learningArea, taskGroup });
+      setFormData({ ...user, department: user.department || '' });
     } else {
-      setFormData({ id: null, username: '', password: '', name: '', role: 'user', learningArea: '', taskGroup: '' });
+      setFormData({ id: null, username: '', password: '', name: '', role: 'user', department: '' });
     }
     setShowModal(true);
   };
 
   const handleSave = async (e) => {
     e.preventDefault();
-    const finalDept = [formData.learningArea, formData.taskGroup].filter(Boolean).join(', ');
     const payload = { 
       username: formData.username,
       password: formData.password,
       name: formData.name,
       role: formData.role,
-      department: finalDept,
+      department: formData.department,
       status: formData.status || 'active'
     };
 
@@ -158,21 +160,12 @@ function AdminUserManagement() {
                 <label className="form-label">ชื่อ-นามสกุล</label>
                 <input required className="form-control" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
               </div>
-              <div className="form-group" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div>
-                  <label className="form-label">กลุ่มสาระ</label>
-                  <select className="form-control" value={formData.learningArea} onChange={e => setFormData({...formData, learningArea: e.target.value})}>
-                    <option value="">-- ไม่ระบุ --</option>
-                    {LEARNING_AREAS.map(la => <option key={la} value={la}>{la}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="form-label">กลุ่มงาน</label>
-                  <select className="form-control" value={formData.taskGroup} onChange={e => setFormData({...formData, taskGroup: e.target.value})}>
-                    <option value="">-- ไม่ระบุ --</option>
-                    {TASK_GROUPS.map(tg => <option key={tg} value={tg}>{tg}</option>)}
-                  </select>
-                </div>
+              <div className="form-group">
+                <label className="form-label">กลุ่มงาน/กลุ่มสาระ</label>
+                <select className="form-control" value={formData.department} onChange={e => setFormData({...formData, department: e.target.value})}>
+                  <option value="">-- ไม่ระบุ --</option>
+                  {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
               </div>
               <div className="form-group">
                 <label className="form-label">สิทธิ์การใช้งาน (Role)</label>
