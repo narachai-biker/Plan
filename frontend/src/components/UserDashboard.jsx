@@ -52,16 +52,16 @@ export default function UserDashboard() {
 
     if (actData) {
       setActivities(actData);
-      const uniqueDepts = [...new Set(actData.map(a => a.department))].sort();
-      setAllDepartments(uniqueDepts);
-      if (isPlan && !selectedDept && uniqueDepts.length > 0) {
-        setSelectedDept(uniqueDepts[0]);
-      }
     }
     if (prodData) setProducts(prodData);
     if (reqData) setRequests(reqData);
     if (lockData) {
       setDepartmentLocks(lockData);
+      const uniqueDepts = [...new Set(lockData.map(l => l.department))].sort();
+      setAllDepartments(uniqueDepts);
+      if (isPlan && !selectedDept && uniqueDepts.length > 0) {
+        setSelectedDept(uniqueDepts[0]);
+      }
     }
     if (sysData) setSystemStatus(sysData.value);
   };

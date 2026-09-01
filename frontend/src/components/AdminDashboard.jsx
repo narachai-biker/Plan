@@ -133,11 +133,13 @@ function AdminDashboard() {
     const { data: actData } = await supabase.from('activities').select('*');
     if (actData) {
       setActivitiesList(actData);
-      setDepartments([...new Set(actData.map(d => d.department))]);
     }
 
     const { data: lockData } = await supabase.from('departmentlocks').select('*');
-    if (lockData) setDepartmentLocks(lockData);
+    if (lockData) {
+      setDepartmentLocks(lockData);
+      setDepartments([...new Set(lockData.map(d => d.department))]);
+    }
   };
 
   const fetchOrders = async () => {
