@@ -89,13 +89,16 @@ function AdminDashboard() {
       });
       result = Object.keys(aMap).map(k => ({ activity_name: k, total: aMap[k] }));
     } else if (budgetCategory === '3') {
+      const activities = aData.filter(a => a.activity_id && a.activity_id.startsWith('รด'));
       const aMap = {};
+      activities.forEach(a => { aMap[a.activity] = 0; });
+
       oData.forEach(o => {
         const act = aData.find(a => a.activity_id === o.activity_id);
         const isIncome = (o.activity_id && o.activity_id.startsWith('รด')) || (act && act.activity_id && act.activity_id.startsWith('รด'));
         if (isIncome && act) {
           const qty = o.status === 'รอพิจารณา' ? o.qty_requested : (o.status === 'ไม่อนุมัติ' ? 0 : o.qty_approved);
-          if (!aMap[act.activity]) aMap[act.activity] = 0;
+          if (aMap[act.activity] === undefined) aMap[act.activity] = 0;
           aMap[act.activity] += qty * o.price;
         }
       });
