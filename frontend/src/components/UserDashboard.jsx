@@ -13,6 +13,9 @@ export default function UserDashboard() {
   const [selectedDept, setSelectedDept] = useState(defaultDepartments[0] || '');
   const [allDepartments, setAllDepartments] = useState([]);
 
+  const [filterActivityId, setFilterActivityId] = useState('');
+  const [filterTerm, setFilterTerm] = useState('');
+
   const [activeTab, setActiveTab] = useState('Activities');
   const [activities, setActivities] = useState([]);
   const [products, setProducts] = useState([]);
@@ -226,6 +229,13 @@ export default function UserDashboard() {
   // Filter cart for current department & active tab
   let visibleCart = requests.filter(r => r.department === selectedDept && r.tab_category === activeTab);
   
+  if (filterTerm) {
+    visibleCart = visibleCart.filter(r => r.term === filterTerm);
+  }
+  if (activeTab === 'Activities' && filterActivityId) {
+    visibleCart = visibleCart.filter(r => r.activity_id === filterActivityId);
+  }
+  
   // Sort by term (2/2569 before 1/2570)
   visibleCart = visibleCart.sort((a, b) => {
     if (a.term === '2/2569' && b.term !== '2/2569') return -1;
@@ -271,11 +281,34 @@ export default function UserDashboard() {
           <button 
             key={tab} 
             className={`tab ${activeTab === tab ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab)}
+            onClick={() => { setActiveTab(tab); setFilterActivityId(''); setFilterTerm(''); }}
           >
             {tab === 'Activities' ? 'กิจกรรม' : tab === 'Office Supplies' ? 'วัสดุสำนักงาน' : 'เทคโนโลยี'}
           </button>
         ))}
+      </div>
+
+      <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
+        {activeTab === 'Activities' && (
+          <div className="form-group" style={{ flex: 1, maxWidth: '300px' }}>
+            <label className="form-label" style={{ fontSize: '0.9rem' }}>กรองรหัสกิจกรรม</label>
+            <select className="form-control" value={filterActivityId} onChange={e => setFilterActivityId(e.target.value)}>
+              <option value="">-- ทั้งหมด --</option>
+              {[...new Set(requests.filter(r => r.department === selectedDept && r.tab_category === 'Activities').map(r => r.activity_id))].filter(id => id && id !== '-').map(id => {
+                const act = activities.find(a => a.activity_id === id);
+                return <option key={id} value={id}>[{id}] {act ? act.activity : ''}</option>;
+              })}
+            </select>
+          </div>
+        )}
+        <div className="form-group" style={{ flex: 1, maxWidth: '200px' }}>
+          <label className="form-label" style={{ fontSize: '0.9rem' }}>กรองภาคเรียน</label>
+          <select className="form-control" value={filterTerm} onChange={e => setFilterTerm(e.target.value)}>
+            <option value="">-- ทั้งหมด --</option>
+            <option value="2/2569">2/2569</option>
+            <option value="1/2570">1/2570</option>
+          </select>
+        </div>
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
@@ -360,6 +393,15 @@ export default function UserDashboard() {
                 </tr>
               );
             })}
+            {visibleCart.length > 0 && (
+              <tr style={{ fontWeight: 'bold', background: 'var(--bg-color)' }}>
+                <td colSpan="6" style={{ textAlign: 'right', paddingRight: '16px' }}>รวมมูลค่าทั้งสิ้น:</td>
+                <td style={{ color: '#1d4ed8' }}>
+                  {visibleCart.reduce((sum, item) => sum + (item.price * item.qty_requested), 0).toLocaleString()}
+                </td>
+                <td colSpan="3">บาท</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
