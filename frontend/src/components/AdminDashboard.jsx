@@ -3,12 +3,29 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../supabaseClient';
 import { exportBudgetToExcel } from '../utils/exportUtils';
 
+const BUDGET_TYPES = [
+  "1.ค่าจัดการเรียนการสอน",
+  "2.ค่าหนังสือเรียน",
+  "3.ค่าอุปกรณ์การเรียน",
+  "4.ค่าเครื่องแบบนักเรียน",
+  "5.ค่ากิจกรรมพัฒนาคุณภาพผู้เรียน",
+  "6.เงินรายได้ไม่มีวัตถุประสงค์",
+  "7.ค่าจ้างครูต่างชาติ",
+  "8.ค่าจ้างบุคลากรที่ปฏิบัติงาน",
+  "9.ค่าคู่มือนักเรียน",
+  "10.ค่าวารสารโรงเรียน",
+  "11.ค่าบัตรประจำตัวนักเรียน",
+  "12.ค่ากิจกรรมปฐมนิเทศ",
+  "13.ค่าประกันชีวิต",
+  "14.ค่ากองทุนเพื่อการกู้ยืม"
+];
+
 function AdminDashboard() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard'); // dashboard or consideration
   
   // Dashboard states
-  const [budgetCategory, setBudgetCategory] = useState('1'); // 1, 2, 3
+  const [budgetCategory, setBudgetCategory] = useState(BUDGET_TYPES[0]); // 1, 2, 3
   const [dashboardData, setDashboardData] = useState([]);
   const [systemStatus, setSystemStatus] = useState('open');
 
@@ -46,7 +63,7 @@ function AdminDashboard() {
     if (!oData || !aData) return;
 
     let result = [];
-    if (budgetCategory === '1') {
+    if (budgetCategory === BUDGET_TYPES[0]) {
       const depts = [...new Set(oData.map(o => o.department))];
       result = depts.map(dept => {
         const dOrders = oData.filter(o => o.department === dept);
@@ -54,7 +71,7 @@ function AdminDashboard() {
 
         dOrders.forEach(o => {
           const act = aData.find(a => a.activity_id === o.activity_id);
-          const validActivity = act && act.budget_type && act.budget_type.includes('ค่าจัดการเรียนการสอน');
+          const validActivity = act && act.budget_type === budgetCategory;
           
           const qty = o.status === 'รอพิจารณา' ? o.qty_requested : (o.status === 'ไม่อนุมัติ' ? 0 : o.qty_approved);
           const val = qty * o.price;
@@ -75,29 +92,14 @@ function AdminDashboard() {
           tech_total: techTotal
         };
       });
-    } else if (budgetCategory === '2') {
-      const activities = aData.filter(a => a.budget_type && a.budget_type.includes('กิจกรรมพัฒนาคุณภาพผู้เรียน'));
+    } else {
+      const activities = aData.filter(a => a.budget_type === budgetCategory);
       const aMap = {};
       activities.forEach(a => { aMap[a.activity] = 0; });
 
       oData.forEach(o => {
         const act = aData.find(a => a.activity_id === o.activity_id);
-        if (act && act.budget_type && act.budget_type.includes('กิจกรรมพัฒนาคุณภาพผู้เรียน')) {
-          const qty = o.status === 'รอพิจารณา' ? o.qty_requested : (o.status === 'ไม่อนุมัติ' ? 0 : o.qty_approved);
-          if (!aMap[act.activity]) aMap[act.activity] = 0;
-          aMap[act.activity] += qty * o.price;
-        }
-      });
-      result = Object.keys(aMap).map(k => ({ activity_name: k, total: aMap[k] }));
-    } else if (budgetCategory === '3') {
-      const activities = aData.filter(a => a.activity_id && a.activity_id.startsWith('รด'));
-      const aMap = {};
-      activities.forEach(a => { aMap[a.activity] = 0; });
-
-      oData.forEach(o => {
-        const act = aData.find(a => a.activity_id === o.activity_id);
-        const isIncome = (o.activity_id && o.activity_id.startsWith('รด')) || (act && act.activity_id && act.activity_id.startsWith('รด'));
-        if (isIncome && act) {
+        if (act && act.budget_type === budgetCategory) {
           const qty = o.status === 'รอพิจารณา' ? o.qty_requested : (o.status === 'ไม่อนุมัติ' ? 0 : o.qty_approved);
           if (aMap[act.activity] === undefined) aMap[act.activity] = 0;
           aMap[act.activity] += qty * o.price;
@@ -270,15 +272,15 @@ function AdminDashboard() {
           <div className="form-group" style={{ maxWidth: '400px', marginBottom: '24px' }}>
             <label className="form-label">กรองประเภทเงิน</label>
             <select className="form-control" value={budgetCategory} onChange={e => setBudgetCategory(e.target.value)}>
-              <option value="1">1. เงินอุดหนุน (ค่าจัดการเรียนการสอน)</option>
-              <option value="2">2. เงินกิจกรรมพัฒนาคุณภาพผู้เรียน</option>
-              <option value="3">3. เงินรายได้สถานศึกษา</option>
+              {BUDGET_TYPES.map(type => (
+                <option key={type} value={type}>{type}</option>
+              ))}
             </select>
           </div>
 
           <table className="table">
             <thead>
-              {budgetCategory === '1' ? (
+              {budgetCategory === BUDGET_TYPES[0] ? (
                 <tr>
                   <th>กลุ่มงาน/กลุ่มสาระ</th>
                   <th>กิจกรรม</th>
@@ -295,7 +297,7 @@ function AdminDashboard() {
             <tbody>
               {dashboardData.map((d, i) => (
                 <tr key={i}>
-                  {budgetCategory === '1' ? (
+                  {budgetCategory === BUDGET_TYPES[0] ? (
                     <>
                       <td>{d.department}</td>
                       <td>{d.activity_total?.toLocaleString() || 0}</td>
@@ -312,7 +314,7 @@ function AdminDashboard() {
               ))}
               <tr style={{ fontWeight: 'bold', background: 'var(--bg-color)' }}>
                 <td>รวมทั้งสิ้น</td>
-                {budgetCategory === '1' ? (
+                {budgetCategory === BUDGET_TYPES[0] ? (
                   <>
                     <td>{dashboardData.reduce((sum, d) => sum + (d.activity_total || 0), 0).toLocaleString()}</td>
                     <td>{dashboardData.reduce((sum, d) => sum + (d.office_total || 0), 0).toLocaleString()}</td>
