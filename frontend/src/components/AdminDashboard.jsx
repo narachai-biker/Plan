@@ -68,6 +68,7 @@ function AdminDashboard() {
       result = depts.map(dept => {
         const dOrders = oData.filter(o => o.department === dept);
         let actTotal = 0, offTotal = 0, techTotal = 0;
+        let t2569 = 0, t2570 = 0;
 
         dOrders.forEach(o => {
           const act = aData.find(a => a.activity_id === o.activity_id);
@@ -76,12 +77,21 @@ function AdminDashboard() {
           const qty = o.status === 'รอพิจารณา' ? o.qty_requested : (o.status === 'ไม่อนุมัติ' ? 0 : o.qty_approved);
           const val = qty * o.price;
 
+          let added = false;
           if (o.tab_category === 'Activities' && validActivity) {
             actTotal += val;
+            added = true;
           } else if (o.tab_category === 'Office Supplies') {
             offTotal += val;
+            added = true;
           } else if (o.tab_category === 'Technology') {
             techTotal += val;
+            added = true;
+          }
+
+          if (added) {
+            if (o.term === '2/2569') t2569 += val;
+            if (o.term === '1/2570') t2570 += val;
           }
         });
         
@@ -89,23 +99,29 @@ function AdminDashboard() {
           department: dept,
           activity_total: actTotal,
           office_total: offTotal,
-          tech_total: techTotal
+          tech_total: techTotal,
+          t2569,
+          t2570,
+          total: actTotal + offTotal + techTotal
         };
       });
     } else {
       const activities = aData.filter(a => a.budget_type === budgetCategory);
       const aMap = {};
-      activities.forEach(a => { aMap[a.activity] = 0; });
+      activities.forEach(a => { aMap[a.activity] = { total: 0, t2569: 0, t2570: 0 }; });
 
       oData.forEach(o => {
         const act = aData.find(a => a.activity_id === o.activity_id);
         if (act && act.budget_type === budgetCategory) {
           const qty = o.status === 'รอพิจารณา' ? o.qty_requested : (o.status === 'ไม่อนุมัติ' ? 0 : o.qty_approved);
-          if (aMap[act.activity] === undefined) aMap[act.activity] = 0;
-          aMap[act.activity] += qty * o.price;
+          const val = qty * o.price;
+          if (aMap[act.activity] === undefined) aMap[act.activity] = { total: 0, t2569: 0, t2570: 0 };
+          aMap[act.activity].total += val;
+          if (o.term === '2/2569') aMap[act.activity].t2569 += val;
+          if (o.term === '1/2570') aMap[act.activity].t2570 += val;
         }
       });
-      result = Object.keys(aMap).map(k => ({ activity_name: k, total: aMap[k] }));
+      result = Object.keys(aMap).map(k => ({ activity_name: k, ...aMap[k] }));
     }
     setDashboardData(result);
   };
@@ -286,11 +302,16 @@ function AdminDashboard() {
                   <th>กิจกรรม</th>
                   <th>วัสดุสำนักงาน</th>
                   <th>เทคโนโลยี</th>
+                  <th>เทอม 2/2569</th>
+                  <th>เทอม 1/2570</th>
+                  <th>รวมทั้งสิ้น</th>
                 </tr>
               ) : (
                 <tr>
                   <th>กิจกรรม</th>
-                  <th>ยอดเงินรวมที่ขอ</th>
+                  <th>เทอม 2/2569</th>
+                  <th>เทอม 1/2570</th>
+                  <th>รวมทั้งสิ้น</th>
                 </tr>
               )}
             </thead>
@@ -303,11 +324,16 @@ function AdminDashboard() {
                       <td>{d.activity_total?.toLocaleString() || 0}</td>
                       <td>{d.office_total?.toLocaleString() || 0}</td>
                       <td>{d.tech_total?.toLocaleString() || 0}</td>
+                      <td>{d.t2569?.toLocaleString() || 0}</td>
+                      <td>{d.t2570?.toLocaleString() || 0}</td>
+                      <td style={{ fontWeight: 'bold' }}>{d.total?.toLocaleString() || 0}</td>
                     </>
                   ) : (
                     <>
                       <td>{d.activity_name}</td>
-                      <td>{d.total?.toLocaleString() || 0}</td>
+                      <td>{d.t2569?.toLocaleString() || 0}</td>
+                      <td>{d.t2570?.toLocaleString() || 0}</td>
+                      <td style={{ fontWeight: 'bold' }}>{d.total?.toLocaleString() || 0}</td>
                     </>
                   )}
                 </tr>
@@ -319,9 +345,16 @@ function AdminDashboard() {
                     <td>{dashboardData.reduce((sum, d) => sum + (d.activity_total || 0), 0).toLocaleString()}</td>
                     <td>{dashboardData.reduce((sum, d) => sum + (d.office_total || 0), 0).toLocaleString()}</td>
                     <td>{dashboardData.reduce((sum, d) => sum + (d.tech_total || 0), 0).toLocaleString()}</td>
+                    <td style={{ color: '#1d4ed8' }}>{dashboardData.reduce((sum, d) => sum + (d.t2569 || 0), 0).toLocaleString()}</td>
+                    <td style={{ color: '#15803d' }}>{dashboardData.reduce((sum, d) => sum + (d.t2570 || 0), 0).toLocaleString()}</td>
+                    <td style={{ color: '#b45309' }}>{dashboardData.reduce((sum, d) => sum + (d.total || 0), 0).toLocaleString()}</td>
                   </>
                 ) : (
-                  <td>{dashboardData.reduce((sum, d) => sum + (d.total || 0), 0).toLocaleString()}</td>
+                  <>
+                    <td style={{ color: '#1d4ed8' }}>{dashboardData.reduce((sum, d) => sum + (d.t2569 || 0), 0).toLocaleString()}</td>
+                    <td style={{ color: '#15803d' }}>{dashboardData.reduce((sum, d) => sum + (d.t2570 || 0), 0).toLocaleString()}</td>
+                    <td style={{ color: '#b45309' }}>{dashboardData.reduce((sum, d) => sum + (d.total || 0), 0).toLocaleString()}</td>
+                  </>
                 )}
               </tr>
             </tbody>
