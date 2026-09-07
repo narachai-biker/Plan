@@ -18,6 +18,7 @@ function AdminDashboard() {
   const [departmentLocks, setDepartmentLocks] = useState([]);
   const [selectedDept, setSelectedDept] = useState('');
   const [considerTab, setConsiderTab] = useState('Activities'); // Activities, Office Supplies, Technology
+  const [filterActivityId, setFilterActivityId] = useState('');
   const [orders, setOrders] = useState([]);
   const [history, setHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
@@ -219,7 +220,8 @@ function AdminDashboard() {
   const getSummary = () => {
     let t2569 = 0;
     let t2570 = 0;
-    orders.forEach(o => {
+    const displayOrders = filterActivityId ? orders.filter(o => o.activity_id === filterActivityId) : orders;
+    displayOrders.forEach(o => {
       const activeQty = o.status === 'รอพิจารณา' ? o.qty_requested : o.qty_approved;
       if (o.term === '2/2569') t2569 += activeQty * o.price;
       if (o.term === '1/2570') t2570 += activeQty * o.price;
@@ -328,22 +330,34 @@ function AdminDashboard() {
       {activeTab === 'consideration' && (
         <div>
           <div className="card" style={{ marginBottom: '24px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
               <div className="form-group">
                 <label className="form-label">เลือกกลุ่มงาน/กลุ่มสาระ</label>
-                <select className="form-control" value={selectedDept} onChange={e => setSelectedDept(e.target.value)}>
+                <select className="form-control" value={selectedDept} onChange={e => { setSelectedDept(e.target.value); setFilterActivityId(''); }}>
                   <option value="">-- เลือกกลุ่มงาน --</option>
                   {departments.map(d => <option key={d} value={d}>{d}</option>)}
                 </select>
               </div>
               <div className="form-group">
                 <label className="form-label">เลือกหมวดหมู่</label>
-                <select className="form-control" value={considerTab} onChange={e => setConsiderTab(e.target.value)}>
+                <select className="form-control" value={considerTab} onChange={e => { setConsiderTab(e.target.value); setFilterActivityId(''); }}>
                   <option value="Activities">กิจกรรม</option>
                   <option value="Office Supplies">วัสดุสำนักงาน</option>
                   <option value="Technology">เทคโนโลยี</option>
                 </select>
               </div>
+              {considerTab === 'Activities' && (
+                <div className="form-group">
+                  <label className="form-label">กรองรหัสกิจกรรม</label>
+                  <select className="form-control" value={filterActivityId} onChange={e => setFilterActivityId(e.target.value)}>
+                    <option value="">-- กิจกรรมทั้งหมด --</option>
+                    {[...new Set(orders.map(o => o.activity_id))].filter(id => id && id !== '-').map(id => {
+                      const act = activitiesList.find(a => a.activity_id === id);
+                      return <option key={id} value={id}>[{id}] {act ? act.activity : ''}</option>;
+                    })}
+                  </select>
+                </div>
+              )}
             </div>
 
             {selectedDept && (
@@ -372,13 +386,14 @@ function AdminDashboard() {
               <button 
                 className="btn btn-primary" 
                 onClick={() => {
-                  if(confirm('ต้องการอนุมัติรายการที่รอพิจารณาทั้งหมดในหมวดหมู่นี้ใช่หรือไม่?')) {
-                    orders.filter(o => o.status === 'รอพิจารณา').forEach(o => {
+                  if(confirm('ต้องการอนุมัติรายการที่รอพิจารณาทั้งหมดที่แสดงผลอยู่ใช่หรือไม่?')) {
+                    const displayOrders = filterActivityId ? orders.filter(o => o.activity_id === filterActivityId) : orders;
+                    displayOrders.filter(o => o.status === 'รอพิจารณา').forEach(o => {
                       handleUpdate(o.id, o.qty_requested, 'อนุมัติ');
                     });
                   }
                 }}
-                disabled={!orders.some(o => o.status === 'รอพิจารณา')}
+                disabled={!(filterActivityId ? orders.filter(o => o.activity_id === filterActivityId) : orders).some(o => o.status === 'รอพิจารณา')}
               >
                 อนุมัติรายการที่รอพิจารณาทั้งหมด
               </button>
@@ -398,12 +413,13 @@ function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {orders.length === 0 && (
+                {(filterActivityId ? orders.filter(o => o.activity_id === filterActivityId) : orders).length === 0 && (
                   <tr><td colSpan="9" style={{ textAlign: 'center' }}>ไม่พบรายการ</td></tr>
                 )}
-                {orders.map(o => {
+                {(filterActivityId ? orders.filter(o => o.activity_id === filterActivityId) : orders).map(o => {
                   const isRejected = o.status === 'ไม่อนุมัติ';
                   const isEdited = o.status === 'แก้ไข';
+                  const actInfo = activitiesList.find(a => a.activity_id === o.activity_id);
                   return (
                     <tr key={o.id} style={{ 
                       background: isEdited ? '#fffbeb' : 'inherit',
@@ -412,7 +428,7 @@ function AdminDashboard() {
                       color: isRejected ? 'red' : 'inherit'
                     }}>
                       <td>{o.term}</td>
-                      <td>{o.activity_id !== '-' ? `[${o.activity_id}]` : '-'}</td>
+                      <td>{o.activity_id !== '-' ? `[${o.activity_id}] ${actInfo ? actInfo.activity : ''}` : '-'}</td>
                       <td>{o.item_name}</td>
                       <td>{o.price.toLocaleString()}</td>
                       <td>{o.qty_requested}</td>
