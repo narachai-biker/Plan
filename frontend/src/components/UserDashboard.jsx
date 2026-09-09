@@ -86,7 +86,7 @@ export default function UserDashboard() {
   };
 
   const getFilteredProducts = () => {
-    return products.filter(p => p.category === modalCategory);
+    return products.filter(p => p.category === modalCategory).sort((a, b) => a.id - b.id);
   };
 
   const handleItemSelect = (val) => {

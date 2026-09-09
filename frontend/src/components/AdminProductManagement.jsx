@@ -100,6 +100,10 @@ export default function AdminProductManagement() {
     if (filterCategory && p.category !== filterCategory) return false;
     if (searchQuery && !p.item_name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     return true;
+  }).sort((a, b) => {
+    if (a.category < b.category) return -1;
+    if (a.category > b.category) return 1;
+    return a.id - b.id;
   });
 
   return (
