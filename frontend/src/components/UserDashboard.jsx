@@ -45,10 +45,14 @@ export default function UserDashboard() {
   const [editItem, setEditItem] = useState(null);
 
   const fetchData = async () => {
+    const targetDept = selectedDept || (isPlan ? '' : defaultDepartments[0]);
+    let reqQuery = supabase.from('orderscart').select('*').limit(10000);
+    if (targetDept) reqQuery = reqQuery.eq('department', targetDept);
+
     const [{ data: actData }, { data: prodData }, { data: reqData }, { data: lockData }, { data: sysData }] = await Promise.all([
-      supabase.from('activities').select('*'),
-      supabase.from('productcatalog').select('*'),
-      supabase.from('orderscart').select('*'),
+      supabase.from('activities').select('*').limit(10000),
+      supabase.from('productcatalog').select('*').limit(10000),
+      reqQuery,
       supabase.from('departmentlocks').select('*'),
       supabase.from('systemsettings').select('*').eq('key', 'system_status').single()
     ]);

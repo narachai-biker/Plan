@@ -58,8 +58,8 @@ function AdminDashboard() {
   }, [selectedDept, considerTab]);
 
   const fetchDashboard = async () => {
-    const { data: oData } = await supabase.from('orderscart').select('*');
-    const { data: aData } = await supabase.from('activities').select('*');
+    const { data: oData } = await supabase.from('orderscart').select('*').limit(10000);
+    const { data: aData } = await supabase.from('activities').select('*').limit(10000);
     if (!oData || !aData) return;
 
     let result = [];
@@ -152,12 +152,12 @@ function AdminDashboard() {
   };
 
   const fetchDepartments = async () => {
-    const { data: actData } = await supabase.from('activities').select('*');
+    const { data: actData } = await supabase.from('activities').select('*').limit(10000);
     if (actData) {
       setActivitiesList(actData);
     }
 
-    const { data: lockData } = await supabase.from('departmentlocks').select('*');
+    const { data: lockData } = await supabase.from('departmentlocks').select('*').limit(10000);
     if (lockData) {
       setDepartmentLocks(lockData);
       setDepartments([...new Set(lockData.map(d => d.department))]);
@@ -171,7 +171,7 @@ function AdminDashboard() {
   };
 
   const fetchHistory = async () => {
-    const { data } = await supabase.from('historylog').select('*').order('created_at', { ascending: false });
+    const { data } = await supabase.from('historylog').select('*').order('created_at', { ascending: false }).limit(1000);
     if (data) setHistory(data);
   };
 
@@ -220,8 +220,8 @@ function AdminDashboard() {
 
   const exportExcel = async () => {
     try {
-      const { data: ordersData } = await supabase.from('orderscart').select('*');
-      const { data: actData } = await supabase.from('activities').select('*');
+      const { data: ordersData } = await supabase.from('orderscart').select('*').limit(10000);
+      const { data: actData } = await supabase.from('activities').select('*').limit(10000);
       
       if (!ordersData || ordersData.length === 0) {
         alert('ไม่มีข้อมูลสำหรับส่งออก');
