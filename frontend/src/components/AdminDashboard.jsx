@@ -57,9 +57,23 @@ function AdminDashboard() {
     }
   }, [selectedDept, considerTab]);
 
+  const fetchAllRows = async (table) => {
+    let allData = [];
+    let from = 0;
+    const step = 1000;
+    while (true) {
+      const { data, error } = await supabase.from(table).select('*').range(from, from + step - 1);
+      if (error || !data || data.length === 0) break;
+      allData = [...allData, ...data];
+      if (data.length < step) break;
+      from += step;
+    }
+    return allData;
+  };
+
   const fetchDashboard = async () => {
-    const { data: oData } = await supabase.from('orderscart').select('*').limit(10000);
-    const { data: aData } = await supabase.from('activities').select('*').limit(10000);
+    const oData = await fetchAllRows('orderscart');
+    const aData = await fetchAllRows('activities');
     if (!oData || !aData) return;
 
     let result = [];
@@ -152,7 +166,7 @@ function AdminDashboard() {
   };
 
   const fetchDepartments = async () => {
-    const { data: actData } = await supabase.from('activities').select('*').limit(10000);
+    const actData = await fetchAllRows('activities');
     if (actData) {
       setActivitiesList(actData);
     }
@@ -220,8 +234,8 @@ function AdminDashboard() {
 
   const exportExcel = async () => {
     try {
-      const { data: ordersData } = await supabase.from('orderscart').select('*').limit(10000);
-      const { data: actData } = await supabase.from('activities').select('*').limit(10000);
+      const ordersData = await fetchAllRows('orderscart');
+      const actData = await fetchAllRows('activities');
       
       if (!ordersData || ordersData.length === 0) {
         alert('ไม่มีข้อมูลสำหรับส่งออก');

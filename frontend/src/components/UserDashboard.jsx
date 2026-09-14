@@ -44,15 +44,29 @@ export default function UserDashboard() {
   // Edit Modal State
   const [editItem, setEditItem] = useState(null);
 
+  const fetchAllRows = async (table, filterCol, filterVal) => {
+    let allData = [];
+    let from = 0;
+    const step = 1000;
+    while (true) {
+      let query = supabase.from(table).select('*').range(from, from + step - 1);
+      if (filterCol && filterVal) query = query.eq(filterCol, filterVal);
+      const { data, error } = await query;
+      if (error || !data || data.length === 0) break;
+      allData = [...allData, ...data];
+      if (data.length < step) break;
+      from += step;
+    }
+    return allData;
+  };
+
   const fetchData = async () => {
     const targetDept = selectedDept || (isPlan ? '' : defaultDepartments[0]);
-    let reqQuery = supabase.from('orderscart').select('*').limit(10000);
-    if (targetDept) reqQuery = reqQuery.eq('department', targetDept);
-
-    const [{ data: actData }, { data: prodData }, { data: reqData }, { data: lockData }, { data: sysData }] = await Promise.all([
-      supabase.from('activities').select('*').limit(10000),
-      supabase.from('productcatalog').select('*').limit(10000),
-      reqQuery,
+    
+    const [actData, prodData, reqData, { data: lockData }, { data: sysData }] = await Promise.all([
+      fetchAllRows('activities'),
+      fetchAllRows('productcatalog'),
+      fetchAllRows('orderscart', targetDept ? 'department' : null, targetDept),
       supabase.from('departmentlocks').select('*'),
       supabase.from('systemsettings').select('*').eq('key', 'system_status').single()
     ]);
