@@ -312,10 +312,9 @@ export default function UserDashboard() {
             <label className="form-label" style={{ fontSize: '0.9rem' }}>กรองรหัสกิจกรรม</label>
             <select className="form-control" value={filterActivityId} onChange={e => setFilterActivityId(e.target.value)}>
               <option value="">-- ทั้งหมด --</option>
-              {[...new Set(requests.filter(r => r.department === selectedDept && r.tab_category === 'Activities').map(r => r.activity_id))].filter(id => id && id !== '-').map(id => {
-                const act = activities.find(a => a.activity_id === id);
-                return <option key={id} value={id}>[{id}] {act ? act.activity : ''}</option>;
-              })}
+              {deptActivities.slice().sort((a, b) => a.activity_id.localeCompare(b.activity_id)).map(act => (
+                <option key={act.activity_id} value={act.activity_id}>[{act.activity_id}] {act.activity}</option>
+              ))}
             </select>
           </div>
         )}

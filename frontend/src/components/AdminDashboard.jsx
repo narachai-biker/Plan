@@ -400,10 +400,9 @@ function AdminDashboard() {
                   <label className="form-label">กรองรหัสกิจกรรม</label>
                   <select className="form-control" value={filterActivityId} onChange={e => setFilterActivityId(e.target.value)}>
                     <option value="">-- กิจกรรมทั้งหมด --</option>
-                    {[...new Set(orders.map(o => o.activity_id))].filter(id => id && id !== '-').map(id => {
-                      const act = activitiesList.find(a => a.activity_id === id);
-                      return <option key={id} value={id}>[{id}] {act ? act.activity : ''}</option>;
-                    })}
+                    {activitiesList.filter(a => a.department === selectedDept).sort((a, b) => a.activity_id.localeCompare(b.activity_id)).map(act => (
+                      <option key={act.activity_id} value={act.activity_id}>[{act.activity_id}] {act.activity}</option>
+                    ))}
                   </select>
                 </div>
               )}
