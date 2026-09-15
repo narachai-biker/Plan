@@ -110,13 +110,11 @@ function AdminUserManagement() {
                 <td>{u.department}</td>
                 <td>
                   <span style={{ 
-                    padding: '4px 8px', 
-                    borderRadius: '999px', 
-                    fontSize: '0.8rem',
-                    background: u.role === 'admin' ? '#fee2e2' : '#f1f5f9',
-                    color: u.role === 'admin' ? '#ef4444' : '#64748b'
+                    padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem',
+                    background: u.role === 'admin' ? '#fee2e2' : u.role === 'board' ? '#fef3c7' : '#f1f5f9',
+                    color: u.role === 'admin' ? '#ef4444' : u.role === 'board' ? '#d97706' : '#64748b'
                   }}>
-                    {u.role === 'admin' ? 'Admin' : 'User'}
+                    {u.role === 'admin' ? 'Admin' : u.role === 'board' ? 'Board' : 'User'}
                   </span>
                 </td>
                 <td>
@@ -172,8 +170,9 @@ function AdminUserManagement() {
               <div className="form-group">
                 <label className="form-label">สิทธิ์การใช้งาน (Role)</label>
                 <select className="form-control" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})}>
-                  <option value="user">ผู้ใช้งานทั่วไป (User)</option>
-                  <option value="admin">ผู้ดูแลระบบ (Admin)</option>
+                  <option value="user">User</option>
+                  <option value="board">Board (ผู้บริหาร)</option>
+                  <option value="admin">Admin</option>
                 </select>
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '24px' }}>

@@ -41,6 +41,11 @@ export default function Sidebar() {
               บันทึกรายการ
             </Link>
           </>
+        ) : user.role === 'board' ? (
+          <Link to="/" className={`sidebar-link ${location.pathname === '/' ? 'active' : ''}`}>
+            <Home size={20} />
+            พิจารณางบประมาณ
+          </Link>
         ) : (
           <Link to="/" className={`sidebar-link ${location.pathname === '/' ? 'active' : ''}`}>
             <Edit3 size={20} />

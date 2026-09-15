@@ -34,8 +34,15 @@ function App() {
                 </>
               )}
 
+              {/* Board Routes */}
+              {user?.role === 'board' && (
+                <>
+                  <Route path="/" element={<AdminDashboard />} />
+                </>
+              )}
+
               {/* User Routes */}
-              {user?.role !== 'admin' && (
+              {user?.role === 'user' && (
                 <>
                   <Route path="/" element={!user ? <Navigate to="/login" /> : <UserDashboard />} />
                 </>

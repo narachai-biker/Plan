@@ -271,13 +271,19 @@ function AdminDashboard() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <h2>แดชบอร์ดสำหรับผู้ดูแลระบบ</h2>
         <div>
-          <button 
-            className="btn" 
-            style={{ marginRight: '8px', background: systemStatus === 'open' ? '#16a34a' : '#dc2626', color: 'white', border: 'none' }}
-            onClick={toggleSystemStatus}
-          >
-            สถานะระบบ: {systemStatus === 'open' ? '🟢 เปิดรับคำขอ' : '🔴 ปิดรับคำขอ'}
-          </button>
+          {user?.role === 'admin' ? (
+            <button 
+              className="btn" 
+              style={{ marginRight: '8px', background: systemStatus === 'open' ? '#16a34a' : '#dc2626', color: 'white', border: 'none' }}
+              onClick={toggleSystemStatus}
+            >
+              สถานะระบบ: {systemStatus === 'open' ? '🟢 เปิดรับคำขอ' : '🔴 ปิดรับคำขอ'}
+            </button>
+          ) : (
+            <span style={{ marginRight: '16px', padding: '8px 16px', borderRadius: '4px', background: systemStatus === 'open' ? '#f0fdf4' : '#fef2f2', color: systemStatus === 'open' ? '#16a34a' : '#dc2626', fontWeight: 500 }}>
+              สถานะระบบ: {systemStatus === 'open' ? '🟢 เปิดรับคำขอ' : '🔴 ปิดรับคำขอ'}
+            </span>
+          )}
           <button className="btn btn-outline" onClick={() => setShowHistory(true)} style={{ marginRight: '8px' }}>
             ดูประวัติการแก้ไข
           </button>
@@ -292,9 +298,11 @@ function AdminDashboard() {
         <button className={`tab ${activeTab === 'consideration' ? 'active' : ''}`} onClick={() => setActiveTab('consideration')}>
           พิจารณางบประมาณ
         </button>
-        <button className={`tab ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>
-          ตั้งค่าสิทธิ์การแก้ไข
-        </button>
+        {user?.role === 'admin' && (
+          <button className={`tab ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>
+            ตั้งค่าสิทธิ์การแก้ไข
+          </button>
+        )}
       </div>
 
       {activeTab === 'dashboard' && (
