@@ -25,7 +25,7 @@ export default function UserDashboard() {
   
   // Modals
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [isEditOpen, setIsEditOpen] = useState(false);
+
   
   // Add Modal State
   const [term, setTerm] = useState('2/2569');
@@ -125,7 +125,36 @@ export default function UserDashboard() {
     }
   };
 
-  const handleAddSubmit = async (e) => {
+  const openEditModal = (item) => {
+    setEditItem(item);
+    setTerm(item.term || '2/2569');
+    setSelectedActivity(item.activity_id !== '-' ? item.activity_id : '');
+    
+    const productMatch = products.find(p => p.item_name === item.item_name);
+    if (productMatch) {
+      setModalCategory(productMatch.category);
+      setSelectedItem(productMatch.id.toString());
+      setIsOther(false);
+      setCustomName('');
+      setCustomPrice(productMatch.price);
+      setCustomUnit(productMatch.unit);
+      setCustomBudgetType(productMatch.budget_type);
+    } else {
+      setModalCategory('OTHER');
+      setSelectedItem('OTHER');
+      setIsOther(true);
+      setCustomName(item.item_name);
+      setCustomPrice(item.price);
+      setCustomUnit(item.unit);
+      setCustomBudgetType(item.budget_type);
+    }
+    
+    setQty(item.qty_requested);
+    setRemark(item.remark || '');
+    setIsAddOpen(true);
+  };
+
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
     if (activeTab === 'Activities' && !selectedActivity) return alert("กรุณาเลือกกิจกรรม");
     if (isOther && !customBudgetType) return alert("กรุณาเลือกประเภทงบสำหรับรายการอื่นๆ");
@@ -133,7 +162,6 @@ export default function UserDashboard() {
     const actData = activeTab === 'Activities' ? activities.find(a => a.activity_id === selectedActivity) : null;
     
     const requestData = {
-      order_id: 'ORD-' + Date.now() + Math.floor(Math.random()*1000),
       username: user.username,
       department: selectedDept,
       tab_category: activeTab,
@@ -146,61 +174,45 @@ export default function UserDashboard() {
       unit: customUnit,
       price: parseFloat(customPrice),
       qty_requested: parseInt(qty),
-      qty_approved: 0,
-      status: 'รอพิจารณา',
       remark: remark
     };
 
     try {
-      const { error } = await supabase.from('orderscart').insert([requestData]);
-      if (!error) {
-        setIsAddOpen(false);
-        fetchData();
+      if (editItem) {
+        const { error } = await supabase.from('orderscart').update(requestData).eq('id', editItem.id);
+        if (error) throw new Error(error.message);
+
+        const historyLog = {
+          order_id: editItem.order_id,
+          department: editItem.department,
+          admin_name: user.username,
+          term: requestData.term,
+          tab_category: requestData.tab_category,
+          activity_id: requestData.activity_id,
+          project: requestData.project,
+          item_name: requestData.item_name,
+          old_qty: editItem.qty_requested,
+          new_qty: requestData.qty_requested,
+          old_total: editItem.qty_requested * editItem.price,
+          new_total: requestData.qty_requested * requestData.price,
+          status: 'ผู้ใช้แก้ไขรายการทั้งหมด',
+          remark: requestData.remark
+        };
+        await supabase.from('historylog').insert([historyLog]);
+
       } else {
-        throw new Error(error.message);
+        requestData.order_id = 'ORD-' + Date.now() + Math.floor(Math.random()*1000);
+        requestData.qty_approved = 0;
+        requestData.status = 'รอพิจารณา';
+        const { error } = await supabase.from('orderscart').insert([requestData]);
+        if (error) throw new Error(error.message);
       }
-    } catch (err) {
-      alert("Error saving: " + err.message);
-    }
-  };
 
-  const handleEditSubmit = async (e) => {
-    e.preventDefault();
-
-    try {
-      const { error } = await supabase
-        .from('orderscart')
-        .update({
-          qty_requested: parseInt(editItem.qty_requested),
-          remark: editItem.remark
-        })
-        .eq('id', editItem.id);
-
-      if (error) throw new Error(error.message);
-
-      const old_qty = requests.find(r => r.id === editItem.id).qty_requested;
-      const historyLog = {
-        order_id: editItem.order_id,
-        department: editItem.department,
-        admin_name: user.username,
-        term: editItem.term,
-        tab_category: editItem.tab_category,
-        activity_id: editItem.activity_id,
-        project: editItem.project,
-        item_name: editItem.item_name,
-        old_qty: old_qty,
-        new_qty: parseInt(editItem.qty_requested),
-        old_total: old_qty * editItem.price,
-        new_total: parseInt(editItem.qty_requested) * editItem.price,
-        status: 'ผู้ใช้แก้ไขรายการ',
-        remark: editItem.remark
-      };
-      await supabase.from('historylog').insert([historyLog]);
-
-      setIsEditOpen(false);
+      setIsAddOpen(false);
+      setEditItem(null);
       fetchData();
     } catch (err) {
-      alert("Error updating: " + err.message);
+      alert("Error saving: " + err.message);
     }
   };
 
@@ -338,6 +350,7 @@ export default function UserDashboard() {
             <button className="btn btn-primary" onClick={() => {
               setModalCategory(''); setSelectedItem(''); setIsOther(false); setQty(1); setRemark('');
               setCustomPrice(''); setCustomUnit(''); setCustomBudgetType(''); setCustomName('');
+              setEditItem(null);
               setIsAddOpen(true);
             }}>
               <Plus size={18} /> เพิ่มรายการสินค้า
@@ -400,7 +413,7 @@ export default function UserDashboard() {
                   <td>
                     {!locked ? (
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        <button className="btn btn-outline" style={{ padding: '4px 8px' }} onClick={() => { setEditItem(item); setIsEditOpen(true); }}><Edit2 size={14}/></button>
+                        <button className="btn btn-outline" style={{ padding: '4px 8px' }} onClick={() => openEditModal(item)}><Edit2 size={14}/></button>
                         <button className="btn btn-danger" style={{ padding: '4px 8px' }} onClick={() => handleDelete(item.id)}><Trash2 size={14}/></button>
                       </div>
                     ) : (
@@ -428,11 +441,11 @@ export default function UserDashboard() {
         <div className="modal-overlay">
           <div className="modal-content animate-slide-up">
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px' }}>
-              <h2>เพิ่มรายการสินค้า ({activeTab})</h2>
+              <h2>{editItem ? 'แก้ไขรายการสินค้า' : 'เพิ่มรายการสินค้า'} ({activeTab})</h2>
               <button onClick={() => setIsAddOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={24}/></button>
             </div>
 
-            <form onSubmit={handleAddSubmit}>
+            <form onSubmit={handleFormSubmit}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div className="form-group">
                   <label className="form-label">ภาคเรียน</label>
@@ -527,33 +540,8 @@ export default function UserDashboard() {
                 <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--primary)' }}>
                   ยอดรวม: ฿{((parseFloat(customPrice) || 0) * (parseInt(qty) || 0)).toLocaleString()}
                 </div>
-                <button type="submit" className="btn btn-primary"><Save size={18}/> บันทึกรายการ</button>
+                <button type="submit" className="btn btn-primary"><Save size={18}/> {editItem ? 'บันทึกการแก้ไข' : 'บันทึกรายการ'}</button>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Modal */}
-      {isEditOpen && editItem && (
-        <div className="modal-overlay">
-          <div className="modal-content animate-slide-up" style={{ maxWidth: '400px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px' }}>
-              <h2>แก้ไขรายการ</h2>
-              <button onClick={() => setIsEditOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={24}/></button>
-            </div>
-            
-            <form onSubmit={handleEditSubmit}>
-              <div style={{ marginBottom: '16px', fontWeight: 'bold' }}>{editItem.item_name}</div>
-              <div className="form-group">
-                <label className="form-label">จำนวน</label>
-                <input type="number" className="form-control" value={editItem.qty_requested} onChange={e => setEditItem({...editItem, qty_requested: e.target.value})} min="1" required />
-              </div>
-              <div className="form-group">
-                <label className="form-label">หมายเหตุ</label>
-                <input type="text" className="form-control" value={editItem.remark} onChange={e => setEditItem({...editItem, remark: e.target.value})} />
-              </div>
-              <button type="submit" className="btn btn-primary" style={{ width: '100%' }}><Save size={18}/> บันทึกการแก้ไข</button>
             </form>
           </div>
         </div>
