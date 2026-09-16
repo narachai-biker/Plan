@@ -131,7 +131,8 @@ export const exportBudgetToExcel = (ordersData, actData, fileName) => {
   // Process Activities (Split by budget_type)
   const activityOrders = ordersData.filter(o => o.tab_category === 'Activities');
   const groupedByBudget = activityOrders.reduce((acc, o) => {
-    const bt = o.budget_type || 'ไม่ระบุประเภทงบ';
+    const activityInfo = actData.find(a => a.activity_id === o.activity_id);
+    const bt = activityInfo?.budget_type || 'ไม่ระบุประเภทงบ';
     if (!acc[bt]) acc[bt] = [];
     acc[bt].push(o);
     return acc;
