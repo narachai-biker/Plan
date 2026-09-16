@@ -99,6 +99,27 @@ export const exportBudgetToExcel = (ordersData, actData, fileName) => {
     ];
     ws['!cols'] = colWidths;
 
+    // Add comma formatting to numbers
+    Object.keys(ws).forEach(key => {
+      if (key.startsWith('!')) return;
+      const colMatch = key.match(/^[A-Z]+/);
+      if (!colMatch) return;
+      const col = colMatch[0];
+      
+      // G = ราคา/หน่วย, K = ยอดรวม
+      if (col === 'G' || col === 'K') {
+        if (ws[key] && typeof ws[key].v === 'number') {
+          ws[key].z = '#,##0.00';
+        }
+      }
+      // H = จำนวนที่ขอ, I = จำนวนที่อนุมัติ
+      if (col === 'H' || col === 'I') {
+        if (ws[key] && typeof ws[key].v === 'number') {
+          ws[key].z = '#,##0';
+        }
+      }
+    });
+
     XLSX.utils.book_append_sheet(wb, ws, tab.name);
   });
 
