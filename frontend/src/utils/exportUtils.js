@@ -10,7 +10,7 @@ export const exportBudgetToExcel = (ordersData, actData, fileName) => {
     // Header
     wsData.push([
       'ภาคเรียน', 'กลุ่มงาน', 'รหัสกิจกรรม', 'ชื่อกิจกรรม', 
-      'รายการ', 'ประเภทงบ', 'ราคา/หน่วย', 'จำนวน', 'หน่วยนับ',
+      'รายการ', 'ประเภทงบ', 'จำนวน', 'หน่วยนับ', 'ราคา/หน่วย',
       'ยอดรวม (บาท)', 'สถานะ', 'หมายเหตุ'
     ]);
 
@@ -68,9 +68,9 @@ export const exportBudgetToExcel = (ordersData, actData, fileName) => {
           actName,
           o.item_name,
           o.budget_type,
-          o.price,
           activeQty,
           o.unit,
+          o.price,
           lineTotal,
           o.status,
           o.remark || ''
@@ -113,8 +113,8 @@ export const exportBudgetToExcel = (ordersData, actData, fileName) => {
       if (!colMatch) return;
       const col = colMatch[0];
       
-      // G = ราคา/หน่วย, H = จำนวน, J = ยอดรวม (Indices shifted by -1 after H)
-      if (col === 'G' || col === 'H' || col === 'J') {
+      // G=จำนวน, I=ราคา/หน่วย, J=ยอดรวม
+      if (col === 'G' || col === 'I' || col === 'J') {
         if (ws[key] && typeof ws[key].v === 'number') {
           ws[key].z = '#,##0'; // No decimals
         }
