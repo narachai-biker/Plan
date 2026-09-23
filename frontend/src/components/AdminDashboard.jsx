@@ -242,7 +242,7 @@ function AdminDashboard() {
         return;
       }
 
-      exportBudgetToExcel(ordersData, actData, `budget_export_ALL`);
+      await exportBudgetToExcel(ordersData, actData, `budget_export_ALL`);
     } catch (error) {
       console.error(error);
       alert('เกิดข้อผิดพลาดในการส่งออก Excel');

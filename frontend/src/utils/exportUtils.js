@@ -1,162 +1,178 @@
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 
-export const exportBudgetToExcel = (ordersData, actData, fileName) => {
-  const wb = XLSX.utils.book_new();
+const FONT = { name: 'TH Sarabun PSK', size: 14 };
+const FONT_BOLD = { name: 'TH Sarabun PSK', size: 14, bold: true };
 
-  const generateSheet = (sheetName, tabOrders, wb) => {
-    if (tabOrders.length === 0) return;
-    const wsData = [];
-    
-    // Header
-    wsData.push([
-      'ภาคเรียน', 'กลุ่มงาน', 'รหัสกิจกรรม', 'ชื่อกิจกรรม', 
-      'รายการ', 'ประเภทงบ', 'จำนวน', 'หน่วยนับ', 'ราคา/หน่วย',
-      'ยอดรวม (บาท)', 'สถานะ', 'หมายเหตุ'
-    ]);
+const applyFont = (row, bold = false) => {
+  row.eachCell({ includeEmpty: true }, cell => {
+    cell.font = bold ? FONT_BOLD : FONT;
+    cell.alignment = { vertical: 'middle', wrapText: true };
+  });
+};
 
-    let grandTotal = 0;
-    let totalT1 = 0; // Term 2/2569
-    let totalT2 = 0; // Term 1/2570
+const NUM_FMT = '#,##0';
 
-    // Sort items by term first, then by activity
-    tabOrders.sort((a, b) => {
-      if (a.term !== b.term) {
-        if (a.term === '2/2569') return -1;
-        if (b.term === '2/2569') return 1;
-        return 0;
-      }
-      return (a.activity_id || '').localeCompare(b.activity_id || '');
+const generateSheet = (wb, sheetName, tabOrders, actData) => {
+  if (tabOrders.length === 0) return;
+
+  // Truncate sheet name to 31 chars and remove invalid chars
+  let safeName = sheetName.replace(/[\\/?*[\]:]/g, '').substring(0, 31);
+  const ws = wb.addWorksheet(safeName);
+
+  // Column definitions: A–L
+  ws.columns = [
+    { key: 'term',        width: 12 },
+    { key: 'dept',        width: 28 },
+    { key: 'actId',       width: 16 },
+    { key: 'actName',     width: 42 },
+    { key: 'item',        width: 42 },
+    { key: 'budgetType',  width: 16 },
+    { key: 'qty',         width: 10 },
+    { key: 'unit',        width: 12 },
+    { key: 'price',       width: 14 },
+    { key: 'total',       width: 16 },
+    { key: 'status',      width: 16 },
+    { key: 'remark',      width: 22 },
+  ];
+
+  // Header row
+  const headerRow = ws.addRow([
+    'ภาคเรียน', 'กลุ่มงาน', 'รหัสกิจกรรม', 'ชื่อกิจกรรม',
+    'รายการ', 'ประเภทงบ', 'จำนวน', 'หน่วยนับ', 'ราคา/หน่วย',
+    'ยอดรวม (บาท)', 'สถานะ', 'หมายเหตุ',
+  ]);
+  applyFont(headerRow, true);
+  headerRow.eachCell(cell => {
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9E1F2' } };
+    cell.border = {
+      bottom: { style: 'thin', color: { argb: 'FF000000' } },
+    };
+  });
+
+  let grandTotal = 0, totalT1 = 0, totalT2 = 0;
+
+  // Sort by term then activity_id
+  tabOrders.sort((a, b) => {
+    if (a.term !== b.term) return a.term === '2/2569' ? -1 : 1;
+    return (a.activity_id || '').localeCompare(b.activity_id || '');
+  });
+
+  // Group by activity
+  const grouped = tabOrders.reduce((acc, o) => {
+    const key = o.activity_id || '-';
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(o);
+    return acc;
+  }, {});
+
+  Object.keys(grouped).forEach(actId => {
+    const items = grouped[actId];
+    let actTotal = 0, actT1 = 0, actT2 = 0;
+
+    const actName = actId !== '-'
+      ? (actData.find(a => a.activity_id === actId)?.activity || items[0].activity || '')
+      : '';
+
+    items.forEach(o => {
+      const activeQty = o.status === 'รอพิจารณา' ? o.qty_requested : (o.status === 'ไม่อนุมัติ' ? 0 : o.qty_approved);
+      const lineTotal = o.price * activeQty;
+
+      actTotal += lineTotal;
+      grandTotal += lineTotal;
+      if (o.term === '2/2569') { totalT1 += lineTotal; actT1 += lineTotal; }
+      if (o.term === '1/2570') { totalT2 += lineTotal; actT2 += lineTotal; }
+
+      const dataRow = ws.addRow([
+        o.term,
+        o.department,
+        o.activity_id !== '-' ? o.activity_id : '',
+        actName,
+        o.item_name,
+        o.budget_type,
+        activeQty,
+        o.unit,
+        o.price,
+        lineTotal,
+        o.status,
+        o.remark || '',
+      ]);
+      applyFont(dataRow);
+      // Format numbers
+      dataRow.getCell('qty').numFmt   = NUM_FMT;
+      dataRow.getCell('price').numFmt = NUM_FMT;
+      dataRow.getCell('total').numFmt = NUM_FMT;
     });
 
-    const grouped = tabOrders.reduce((acc, o) => {
-      const actId = o.activity_id || '-';
-      if (!acc[actId]) acc[actId] = [];
-      acc[actId].push(o);
-      return acc;
-    }, {});
-
-    Object.keys(grouped).forEach(actId => {
-      const items = grouped[actId];
-      let activityTotal = 0;
-      let actT1 = 0;
-      let actT2 = 0;
-      
-      const actName = actId !== '-' 
-        ? (actData.find(a => a.activity_id === actId)?.activity || items[0].activity || '') 
-        : '';
-
-      items.forEach(o => {
-        const activeQty = o.status === 'รอพิจารณา' ? o.qty_requested : (o.status === 'ไม่อนุมัติ' ? 0 : o.qty_approved);
-        const lineTotal = o.price * activeQty;
-        
-        activityTotal += lineTotal;
-        grandTotal += lineTotal;
-        
-        if (o.term === '2/2569') {
-          totalT1 += lineTotal;
-          actT1 += lineTotal;
-        }
-        if (o.term === '1/2570') {
-          totalT2 += lineTotal;
-          actT2 += lineTotal;
-        }
-
-        wsData.push([
-          o.term,
-          o.department,
-          o.activity_id !== '-' ? o.activity_id : '',
-          actName,
-          o.item_name,
-          o.budget_type,
-          activeQty,
-          o.unit,
-          o.price,
-          lineTotal,
-          o.status,
-          o.remark || ''
-        ]);
-      });
-
-      // Activity subtotal
-      if (actId !== '-' && items.length > 0) {
-        if (actT1 > 0 && actT2 > 0) {
-          wsData.push(['', '', '', `รวมยอดภาคเรียน 2/2569`, '', '', '', '', '', actT1, '', '']);
-          wsData.push(['', '', '', `รวมยอดภาคเรียน 1/2570`, '', '', '', '', '', actT2, '', '']);
-          wsData.push(['', '', '', `รวมยอดกิจกรรม ${actId}`, '', '', '', '', '', activityTotal, '', '']);
-        } else {
-          wsData.push(['', '', '', `รวมยอดกิจกรรม ${actId}`, '', '', '', '', '', activityTotal, '', '']);
-        }
-        wsData.push([]);
+    // Subtotals for this activity
+    if (actId !== '-' && items.length > 0) {
+      const addSubtotal = (label, val) => {
+        const r = ws.addRow(['', '', '', label, '', '', '', '', '', val, '', '']);
+        applyFont(r, true);
+        r.getCell('total').numFmt = NUM_FMT;
+        r.getCell('total').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } };
+      };
+      if (actT1 > 0 && actT2 > 0) {
+        addSubtotal(`รวมยอดภาคเรียน 2/2569`, actT1);
+        addSubtotal(`รวมยอดภาคเรียน 1/2570`, actT2);
       }
-    });
+      addSubtotal(`รวมยอดกิจกรรม ${actId}`, actTotal);
+      ws.addRow([]); // blank row
+    }
+  });
 
-    // Term subtotals & Grand total
-    wsData.push([]);
-    wsData.push(['', '', '', 'รวมยอดภาคเรียน 2/2569', '', '', '', '', '', totalT1, '', '']);
-    wsData.push(['', '', '', 'รวมยอดภาคเรียน 1/2570', '', '', '', '', '', totalT2, '', '']);
-    wsData.push(['', '', '', 'รวมยอดทั้งสิ้น (2 ภาคเรียน)', '', '', '', '', '', grandTotal, '', '']);
-
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-    
-    // Auto-size columns
-    const colWidths = [
-      {wch: 10}, {wch: 25}, {wch: 15}, {wch: 40}, 
-      {wch: 40}, {wch: 15}, {wch: 12}, {wch: 12}, {wch: 10},
-      {wch: 15}, {wch: 15}, {wch: 20}
-    ];
-    ws['!cols'] = colWidths;
-
-    // Add comma formatting to numbers (no decimals)
-    Object.keys(ws).forEach(key => {
-      if (key.startsWith('!')) return;
-      const colMatch = key.match(/^[A-Z]+/);
-      if (!colMatch) return;
-      const col = colMatch[0];
-      
-      // G=จำนวน, I=ราคา/หน่วย, J=ยอดรวม
-      if (col === 'G' || col === 'I' || col === 'J') {
-        if (ws[key] && typeof ws[key].v === 'number') {
-          ws[key].z = '#,##0'; // No decimals
-        }
-      }
-    });
-
-    // Handle sheet name length limit (31 chars)
-    let safeName = sheetName.replace(/[\\/?*[\]]/g, ''); // Remove invalid chars
-    if (safeName.length > 31) safeName = safeName.substring(0, 31);
-
-    XLSX.utils.book_append_sheet(wb, ws, safeName);
+  // Grand totals
+  ws.addRow([]);
+  const addTotal = (label, val, color) => {
+    const r = ws.addRow(['', '', '', label, '', '', '', '', '', val, '', '']);
+    applyFont(r, true);
+    r.getCell('total').numFmt = NUM_FMT;
+    r.getCell('total').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
   };
+  addTotal('รวมยอดภาคเรียน 2/2569',       totalT1,    'FFDCE6F1');
+  addTotal('รวมยอดภาคเรียน 1/2570',       totalT2,    'FFDCE6F1');
+  addTotal('รวมยอดทั้งสิ้น (2 ภาคเรียน)', grandTotal, 'FFFFE0E0');
+};
 
-  // Process Activities (Split by budget_type)
+export const exportBudgetToExcel = async (ordersData, actData, fileName) => {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'Budget70';
+  wb.created = new Date();
+
+  // Activities – split by activities.budget_type
   const activityOrders = ordersData.filter(o => o.tab_category === 'Activities');
   const groupedByBudget = activityOrders.reduce((acc, o) => {
-    const activityInfo = actData.find(a => a.activity_id === o.activity_id);
-    const bt = activityInfo?.budget_type || 'ไม่ระบุประเภทงบ';
+    const info = actData.find(a => a.activity_id === o.activity_id);
+    const bt = info?.budget_type || 'ไม่ระบุประเภทงบ';
     if (!acc[bt]) acc[bt] = [];
     acc[bt].push(o);
     return acc;
   }, {});
 
   Object.keys(groupedByBudget).forEach(bt => {
-    const nameWithoutNumber = bt.replace(/^\d+\./, ''); // e.g. "1.ค่าจัดการเรียนการสอน" -> "ค่าจัดการเรียนการสอน"
-    const sheetName = `กิจกรรม(${nameWithoutNumber})`;
-    generateSheet(sheetName, groupedByBudget[bt], wb);
+    const nameWithoutNumber = bt.replace(/^\d+\./, '');
+    generateSheet(wb, `กิจกรรม(${nameWithoutNumber})`, groupedByBudget[bt], actData);
   });
 
-  // Process Office Supplies
+  // Office Supplies
   const officeOrders = ordersData.filter(o => o.tab_category === 'Office Supplies');
-  if (officeOrders.length > 0) generateSheet('วัสดุสำนักงาน', officeOrders, wb);
+  if (officeOrders.length > 0) generateSheet(wb, 'วัสดุสำนักงาน', officeOrders, actData);
 
-  // Process Technology
+  // Technology
   const techOrders = ordersData.filter(o => o.tab_category === 'Technology');
-  if (techOrders.length > 0) generateSheet('เทคโนโลยี', techOrders, wb);
+  if (techOrders.length > 0) generateSheet(wb, 'เทคโนโลยี', techOrders, actData);
 
-  if (wb.SheetNames.length === 0) {
-     // If completely empty, just create an empty sheet
-     const ws = XLSX.utils.aoa_to_sheet([['ไม่มีข้อมูล']]);
-     XLSX.utils.book_append_sheet(wb, ws, 'Data');
+  if (wb.worksheets.length === 0) {
+    const ws = wb.addWorksheet('Data');
+    ws.addRow(['ไม่มีข้อมูล']);
   }
 
-  XLSX.writeFile(wb, `${fileName}.xlsx`);
+  // Write to buffer and trigger download
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${fileName}.xlsx`;
+  a.click();
+  URL.revokeObjectURL(url);
 };

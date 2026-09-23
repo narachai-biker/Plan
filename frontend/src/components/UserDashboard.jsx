@@ -283,7 +283,7 @@ export default function UserDashboard() {
         return;
       }
 
-      exportBudgetToExcel(ordersData, actData, `budget_export_${selectedDept}`);
+      await exportBudgetToExcel(ordersData, actData, `budget_export_${selectedDept}`);
     } catch (error) {
       console.error(error);
       alert('เกิดข้อผิดพลาดในการส่งออก Excel');
