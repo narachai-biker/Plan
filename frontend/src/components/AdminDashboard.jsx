@@ -181,7 +181,16 @@ function AdminDashboard() {
   const fetchOrders = async () => {
     if (!selectedDept) return;
     const { data } = await supabase.from('orderscart').select('*').eq('department', selectedDept);
-    if (data) setOrders(data.filter(d => d.tab_category === considerTab));
+    if (data) {
+      const filtered = data.filter(d => d.tab_category === considerTab);
+      filtered.sort((a, b) => {
+        // Sort by term first: 2/2569 before 1/2570
+        if (a.term !== b.term) return a.term === '2/2569' ? -1 : 1;
+        // Then by activity_id
+        return (a.activity_id || '').localeCompare(b.activity_id || '');
+      });
+      setOrders(filtered);
+    }
   };
 
   const fetchHistory = async () => {
