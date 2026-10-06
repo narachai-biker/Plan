@@ -13,23 +13,29 @@ const applyFont = (row, bold = false) => {
 const NUM_FMT = '#,##0';
 
 const generateSheet = (wb, sheetName, tabOrders, actData) => {
-  if (tabOrders.length === 0) return;
+  // 1. Filter out rejected orders
+  const validOrders = tabOrders.filter(o => o.status !== 'ไม่อนุมัติ');
+  if (validOrders.length === 0) return;
 
   // Truncate sheet name to 31 chars and remove invalid chars
   let safeName = sheetName.replace(/[\\/?*[\]:]/g, '').substring(0, 31);
   const ws = wb.addWorksheet(safeName);
 
-  // Column definitions: A–L
+  // Column definitions: A–P
   ws.columns = [
     { key: 'term',        width: 12 },
     { key: 'dept',        width: 28 },
     { key: 'actId',       width: 16 },
     { key: 'actName',     width: 42 },
-    { key: 'item',        width: 42 },
     { key: 'budgetType',  width: 16 },
+    { key: 'item',        width: 42 },
     { key: 'qty',         width: 10 },
     { key: 'unit',        width: 12 },
     { key: 'price',       width: 14 },
+    { key: 'mat',         width: 14 },
+    { key: 'comp',        width: 14 },
+    { key: 'use',         width: 14 },
+    { key: 'equip',       width: 14 },
     { key: 'total',       width: 16 },
     { key: 'status',      width: 16 },
     { key: 'remark',      width: 22 },
@@ -38,7 +44,8 @@ const generateSheet = (wb, sheetName, tabOrders, actData) => {
   // Header row
   const headerRow = ws.addRow([
     'ภาคเรียน', 'กลุ่มงาน', 'รหัสกิจกรรม', 'ชื่อกิจกรรม',
-    'รายการ', 'ประเภทงบ', 'จำนวน', 'หน่วยนับ', 'ราคา/หน่วย',
+    'ประเภทงบ', 'รายการ', 'จำนวน', 'หน่วยนับ', 'ราคา/หน่วย',
+    'วัสดุ', 'ค่าตอบแทน', 'ค่าใช้สอย', 'ครุภัณฑ์',
     'ยอดรวม (บาท)', 'สถานะ', 'หมายเหตุ',
   ]);
   applyFont(headerRow, true);
@@ -49,16 +56,27 @@ const generateSheet = (wb, sheetName, tabOrders, actData) => {
     };
   });
 
-  let grandTotal = 0, totalT1 = 0, totalT2 = 0;
+  const newTotals = () => ({ mat: 0, comp: 0, use: 0, equip: 0, total: 0 });
+  const addTotals = (dest, vals) => {
+    dest.mat += vals.mat;
+    dest.comp += vals.comp;
+    dest.use += vals.use;
+    dest.equip += vals.equip;
+    dest.total += vals.total;
+  };
+
+  let grandTotal = newTotals();
+  let totalT1 = newTotals();
+  let totalT2 = newTotals();
 
   // Sort by term then activity_id
-  tabOrders.sort((a, b) => {
+  validOrders.sort((a, b) => {
     if (a.term !== b.term) return a.term === '2/2569' ? -1 : 1;
     return (a.activity_id || '').localeCompare(b.activity_id || '');
   });
 
   // Group by activity
-  const grouped = tabOrders.reduce((acc, o) => {
+  const grouped = validOrders.reduce((acc, o) => {
     const key = o.activity_id || '-';
     if (!acc[key]) acc[key] = [];
     acc[key].push(o);
@@ -67,66 +85,125 @@ const generateSheet = (wb, sheetName, tabOrders, actData) => {
 
   Object.keys(grouped).forEach(actId => {
     const items = grouped[actId];
-    let actTotal = 0, actT1 = 0, actT2 = 0;
+    let actTotal = newTotals();
+    let actT1 = newTotals();
+    let actT2 = newTotals();
 
     const actName = actId !== '-'
       ? (actData.find(a => a.activity_id === actId)?.activity || items[0].activity || '')
       : '';
 
     items.forEach(o => {
-      const activeQty = o.status === 'รอพิจารณา' ? o.qty_requested : (o.status === 'ไม่อนุมัติ' ? 0 : o.qty_approved);
+      // activeQty since rejected are already filtered out
+      const activeQty = o.status === 'รอพิจารณา' ? o.qty_requested : o.qty_approved;
       const lineTotal = o.price * activeQty;
 
-      actTotal += lineTotal;
-      grandTotal += lineTotal;
-      if (o.term === '2/2569') { totalT1 += lineTotal; actT1 += lineTotal; }
-      if (o.term === '1/2570') { totalT2 += lineTotal; actT2 += lineTotal; }
+      let mat = 0, comp = 0, use = 0, equip = 0;
+      if (o.budget_type === 'วัสดุ') mat = lineTotal;
+      else if (o.budget_type === 'ค่าตอบแทน') comp = lineTotal;
+      else if (o.budget_type === 'ค่าใช้สอย') use = lineTotal;
+      else if (o.budget_type === 'ครุภัณฑ์') equip = lineTotal;
+      else mat = lineTotal; // fallback
+
+      const vals = { mat, comp, use, equip, total: lineTotal };
+
+      addTotals(actTotal, vals);
+      addTotals(grandTotal, vals);
+      if (o.term === '2/2569') { addTotals(totalT1, vals); addTotals(actT1, vals); }
+      if (o.term === '1/2570') { addTotals(totalT2, vals); addTotals(actT2, vals); }
 
       const dataRow = ws.addRow([
         o.term,
         o.department,
         o.activity_id !== '-' ? o.activity_id : '',
         actName,
-        o.item_name,
         o.budget_type,
+        o.item_name,
         activeQty,
         o.unit,
         o.price,
+        mat || '',
+        comp || '',
+        use || '',
+        equip || '',
         lineTotal,
         o.status,
         o.remark || '',
       ]);
       applyFont(dataRow);
       // Format numbers
-      dataRow.getCell('qty').numFmt   = NUM_FMT;
-      dataRow.getCell('price').numFmt = NUM_FMT;
-      dataRow.getCell('total').numFmt = NUM_FMT;
+      ['qty', 'price', 'mat', 'comp', 'use', 'equip', 'total'].forEach(col => {
+        const cell = dataRow.getCell(col);
+        if (cell && typeof cell.value === 'number') {
+           cell.numFmt = NUM_FMT;
+        }
+      });
     });
 
     // Subtotals for this activity
     if (actId !== '-' && items.length > 0) {
-      const addSubtotal = (label, val) => {
-        const r = ws.addRow(['', '', '', label, '', '', '', '', '', val, '', '']);
+      // Add summary line for activity like example
+      const rSum = ws.addRow(['', '', '', '', '', 'รวม', '', '', '', actTotal.mat || '', actTotal.comp || '', actTotal.use || '', actTotal.equip || '', actTotal.total, '', '']);
+      applyFont(rSum, true);
+      ['mat', 'comp', 'use', 'equip', 'total'].forEach(col => {
+        const cell = rSum.getCell(col);
+        if (cell && typeof cell.value === 'number') cell.numFmt = NUM_FMT;
+      });
+
+      const addSubtotal = (label, tVals) => {
+        const r = ws.addRow(['', '', '', label, '', '', '', '', '', tVals.mat || '', tVals.comp || '', tVals.use || '', tVals.equip || '', tVals.total, '', '']);
         applyFont(r, true);
-        r.getCell('total').numFmt = NUM_FMT;
-        r.getCell('total').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } };
+        ['mat', 'comp', 'use', 'equip', 'total'].forEach(col => {
+          const cell = r.getCell(col);
+          if (cell && typeof cell.value === 'number') cell.numFmt = NUM_FMT;
+          if (cell) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } };
+        });
+        // Fill empty cols too for visual effect
+        r.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+           if (colNumber >= 10 && colNumber <= 14) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } };
+        });
       };
-      if (actT1 > 0 && actT2 > 0) {
-        addSubtotal(`รวมยอดภาคเรียน 2/2569`, actT1);
-        addSubtotal(`รวมยอดภาคเรียน 1/2570`, actT2);
+      
+      if (actT1.total > 0 && actT2.total > 0) {
+        addSubtotal(`รวมยอดภาคเรียนที่ 2/2569`, actT1);
+        addSubtotal(`รวมยอดภาคเรียนที่ 1/2570`, actT2);
       }
       addSubtotal(`รวมยอดกิจกรรม ${actId}`, actTotal);
       ws.addRow([]); // blank row
+    } else if (actId === '-' && items.length > 0) {
+       // For Office Supplies and Tech, just show term subtotals if both exist
+       const addSubtotal = (label, tVals) => {
+        const r = ws.addRow(['', '', '', label, '', '', '', '', '', tVals.mat || '', tVals.comp || '', tVals.use || '', tVals.equip || '', tVals.total, '', '']);
+        applyFont(r, true);
+        ['mat', 'comp', 'use', 'equip', 'total'].forEach(col => {
+          const cell = r.getCell(col);
+          if (cell && typeof cell.value === 'number') cell.numFmt = NUM_FMT;
+          if (cell) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } };
+        });
+        r.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+           if (colNumber >= 10 && colNumber <= 14) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } };
+        });
+      };
+
+      if (actT1.total > 0 && actT2.total > 0) {
+        addSubtotal(`รวมยอดภาคเรียนที่ 2/2569`, actT1);
+        addSubtotal(`รวมยอดภาคเรียนที่ 1/2570`, actT2);
+        ws.addRow([]); // blank row
+      }
     }
   });
 
   // Grand totals
   ws.addRow([]);
-  const addTotal = (label, val, color) => {
-    const r = ws.addRow(['', '', '', label, '', '', '', '', '', val, '', '']);
+  const addTotal = (label, tVals, color) => {
+    const r = ws.addRow(['', '', '', label, '', '', '', '', '', tVals.mat || '', tVals.comp || '', tVals.use || '', tVals.equip || '', tVals.total, '', '']);
     applyFont(r, true);
-    r.getCell('total').numFmt = NUM_FMT;
-    r.getCell('total').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
+    r.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+      if (colNumber >= 10 && colNumber <= 14) {
+         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
+         if (typeof cell.value === 'number') cell.numFmt = NUM_FMT;
+      }
+    });
   };
   addTotal('รวมยอดภาคเรียน 2/2569',       totalT1,    'FFDCE6F1');
   addTotal('รวมยอดภาคเรียน 1/2570',       totalT2,    'FFDCE6F1');
