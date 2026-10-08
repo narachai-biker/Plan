@@ -388,19 +388,30 @@ export default function UserDashboard() {
               const locked = isLocked(item.status);
               const isRejected = item.status === 'ไม่อนุมัติ';
               const isEdited = item.status === 'แก้ไข';
+              const activeQty = item.status === 'รอพิจารณา' ? item.qty_requested : (isRejected ? 0 : item.qty_approved);
               
               return (
                 <tr key={item.id} style={{ 
                   background: isEdited ? '#fffbeb' : 'inherit',
-                  opacity: isRejected ? 0.6 : 1
+                  opacity: isRejected ? 0.6 : 1,
+                  textDecoration: isRejected ? 'line-through' : 'none'
                 }}>
                   <td>{item.term}</td>
                   <td title={item.activity}>{item.activity_id !== '-' ? `[${item.activity_id}]` : '-'}</td>
                   <td>{item.item_name}</td>
                   <td><span className="badge" style={{ background: '#e2e8f0', color: '#475569' }}>{item.budget_type}</span></td>
                   <td>{item.price.toLocaleString()}</td>
-                  <td>{item.qty_requested} {item.unit}</td>
-                  <td style={{ fontWeight: 'bold' }}>{(item.price * item.qty_requested).toLocaleString()}</td>
+                  <td>
+                    {item.status === 'อนุมัติ' && item.qty_approved !== item.qty_requested ? (
+                      <span title={`ขอไป ${item.qty_requested} อนุมัติ ${item.qty_approved}`}>
+                        <del style={{color: '#94a3b8', marginRight: '4px'}}>{item.qty_requested}</del>
+                        <span style={{color: '#166534', fontWeight: 'bold'}}>{item.qty_approved}</span> {item.unit}
+                      </span>
+                    ) : (
+                      `${item.qty_requested} ${item.unit}`
+                    )}
+                  </td>
+                  <td style={{ fontWeight: 'bold' }}>{(item.price * (isRejected ? item.qty_requested : activeQty)).toLocaleString()}</td>
                   <td style={{ maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.remark}>{item.remark || '-'}</td>
                   <td>
                     <span className={`badge`} style={{
@@ -427,7 +438,10 @@ export default function UserDashboard() {
               <tr style={{ fontWeight: 'bold', background: 'var(--bg-color)' }}>
                 <td colSpan="6" style={{ textAlign: 'right', paddingRight: '16px' }}>รวมมูลค่าทั้งสิ้น:</td>
                 <td style={{ color: '#1d4ed8' }}>
-                  {visibleCart.reduce((sum, item) => sum + (item.price * item.qty_requested), 0).toLocaleString()}
+                  {visibleCart.reduce((sum, item) => {
+                    const activeQty = item.status === 'รอพิจารณา' ? item.qty_requested : (item.status === 'ไม่อนุมัติ' ? 0 : item.qty_approved);
+                    return sum + (item.price * activeQty);
+                  }, 0).toLocaleString()}
                 </td>
                 <td colSpan="3">บาท</td>
               </tr>
